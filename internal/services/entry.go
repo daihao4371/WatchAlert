@@ -36,6 +36,7 @@ var (
 	FaultCenterService      InterFaultCenterService
 	AiService               InterAiService
 	OidcService             InterOidcService
+	QuickActionService      InterQuickActionService
 )
 
 func NewServices(ctx *ctx.Context) {
@@ -68,4 +69,5 @@ func NewServices(ctx *ctx.Context) {
 	FaultCenterService = newInterFaultCenterService(ctx)
 	AiService = newInterAiService(ctx)
 	OidcService = newInterOidcService(ctx)
+	QuickActionService = newInterQuickActionService(ctx)
 }

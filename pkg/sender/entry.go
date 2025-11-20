@@ -63,7 +63,7 @@ func Sender(ctx *ctx.Context, sendParams SendParams) error {
 
 	// 记录成功发送的日志
 	addRecord(ctx, sendParams, 0, sendParams.Content, "success")
-	logc.Info(ctx.Ctx, fmt.Sprintf("Send alarm ok, msg: %s", sendParams.Content))
+	logc.Info(ctx.Ctx, fmt.Sprintf("Send alarm to %s success", sendParams.NoticeType))
 	return nil
 }
 

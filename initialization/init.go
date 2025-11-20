@@ -13,6 +13,7 @@ import (
 	"watchAlert/internal/repo"
 	"watchAlert/internal/services"
 	"watchAlert/pkg/ai"
+	"watchAlert/pkg/templates"
 	"watchAlert/pkg/tools"
 
 	"github.com/zeromicro/go-zero/core/logc"
@@ -53,6 +54,9 @@ func InitBasic() {
 		logc.Error(ctx.Ctx, fmt.Sprintf("加载系统设置失败: %s", err.Error()))
 		return
 	}
+
+	// 初始化快捷操作配置缓存（供通知模板使用）
+	initQuickActionConfig(r.QuickActionConfig)
 
 	if r.AuthType != nil && *r.AuthType == models.SettingLdapAuth {
 		const mark = "SyncLdapUserJob"
@@ -145,4 +149,11 @@ func pushMuteRuleToRedis() {
 
 	wg.Wait()
 	logc.Infof(ctx.Ctx, "所有静默规则加载完毕！")
+}
+
+// initQuickActionConfig 初始化快捷操作配置缓存
+// 该配置供通知模板层使用，避免模板层直接调用 repo 层
+func initQuickActionConfig(config models.QuickActionConfig) {
+	templates.SetQuickActionConfig(config)
+	logc.Info(context.Background(), "快捷操作配置已加载")
 }

@@ -669,3 +669,61 @@ green
 {{- define "Footer" -}}
 🧑‍💻 WatchAlert - 运维团队
 {{- end }}',0,'','','FeiShu');
+INSERT INTO watchalert.notice_template_examples (id,name,description,template,enable_fei_shu_json_card,template_firing,template_recover,notice_type) VALUES
+('nt-dingding-actioncard-001','钉钉快捷操作卡片模版','支持快捷操作按钮的钉钉 ActionCard 消息模板（认领/静默/查看详情）','{{- define "Title" -}}
+{{- if not .IsRecovered -}}
+【报警中】- WatchAlert 业务系统 🔥
+{{- else -}}
+【已恢复】- WatchAlert 业务系统 ✨
+{{- end -}}
+{{- end }}
+
+{{- define "TitleColor" -}}
+{{- if not .IsRecovered -}}
+red
+{{- else -}}
+green
+{{- end -}}
+{{- end }}
+
+{{ define "Event" -}}
+{{- if not .IsRecovered -}}
+**🔔 报警类型:** ${rule_name}
+
+**🔐 报警指纹:** ${fingerprint}
+
+**🚨 报警等级:** ${severity}
+
+**🖥 报警主机:** ${labels.instance}
+
+**🕘 开始时间:** ${first_trigger_time_format}
+
+**🧑‍🔧 值班人员:** ${duty_user}
+
+**📝 报警事件:** ${annotations}
+
+**⛩️ 故障中心:** ${faultCenter.name}
+{{- else -}}
+**🔔 报警类型:** ${rule_name}
+
+**🔐 报警指纹:** ${fingerprint}
+
+**🚨 报警等级:** ${severity}
+
+**🖥 报警主机:** ${labels.instance}
+
+**🕘 开始时间:** ${first_trigger_time_format}
+
+**🕘 恢复时间:** ${recover_time_format}
+
+**🧑‍🔧 值班人员:** ${duty_user}
+
+**📝 报警事件:** ${annotations}
+
+**⛩️ 故障中心:** ${faultCenter.name}
+{{- end -}}
+{{ end }}
+
+{{- define "Footer" -}}
+🧑‍💻 WatchAlert - 运维团队
+{{- end }}',0,'','','DingDing');

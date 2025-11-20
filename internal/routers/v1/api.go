@@ -55,4 +55,7 @@ func Router(engine *gin.Engine) {
 			oidc.GET("token", api.SystemController.CookieConvertToken)
 		}
 	}
+
+	// 快捷操作路由（独立于 v1 分组，使用自定义 Token 验证）
+	api.QuickActionController.API(engine.Group("api/v1"))
 }
