@@ -25,18 +25,6 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
     const [error, setError] = useState<string | null>(null)
     const [view, setView] = useState<'chart' | 'table'>('chart')
     const [pagination, setPagination] = useState({ index: 1, size: 10, total: 0 })
-    const paginationLocale = {
-        items_per_page: '条/页',
-        jump_to: '跳至',
-        jump_to_confirm: '确定',
-        page: '页',
-        prev_page: '上一页',
-        next_page: '下一页',
-        prev_5: '向前 5 页',
-        next_5: '向后 5 页',
-        prev_3: '向前 3 页',
-        next_3: '向后 3 页',
-    }
 
     useEffect(() => {
         const fetchMetrics = async () => {
@@ -198,10 +186,8 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
         )
     }
 
-    const chartHeight = typeof window !== 'undefined' ? Math.max(560, Math.floor(window.innerHeight * 0.6)) : 560
-
     return (
-        <div style={{ minHeight: "500px" }}>
+        <div style={{ height: "100%", display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
             <div
                 style={{
@@ -209,6 +195,7 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
                     borderBottom: "1px solid #f0f0f0",
                     background: "linear-gradient(135deg, rgb(0 0 0) 0%, rgb(191 191 191) 100%)",
                     borderRadius: "8px 8px 0 0",
+                    flexShrink: 0,
                 }}
             >
                 <Space align="center">
@@ -229,8 +216,8 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
             </div>
 
             {view === 'chart' ? (
-                <div style={{ padding: '16px' }}>
-                    <EventMetricChart data={chartData} height={chartHeight} />
+                <div style={{ padding: '16px', flex: 1, display: 'flex' }}>
+                    <EventMetricChart data={chartData} height={"100%"} />
                     <style>{`
                       .recharts-brush-texts { display: none; }
                       .recharts-brush .recharts-brush-traveller { fill: #000; stroke: #000; opacity: 0.8; }
@@ -245,13 +232,13 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
                         pagination={pagination}
                         onPageChange={onPageChange}
                         onPageSizeChange={onPageSizeChange}
-                        scrollY={typeof window !== 'undefined' ? Math.max(560, Math.floor(window.innerHeight * 0.6)) : 560}
-                        rowKey="id"
+                        scrollY={520}
+                        rowKey={(r) => r.id}
                         showTotal={HandleShowTotal}
                         loading={loading}
-                        locale={paginationLocale}
+                        locale={{}}
                         size="small"
-                        sticky
+                        sticky={true}
                     />
                 </div>
             )}

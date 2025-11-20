@@ -163,7 +163,13 @@ export const SearchViewLogs = ({ type, datasourceId, index, query }) => {
     }
 
     return (
-        <div>
+        <div
+            style={{
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+            }}
+        >
             {loading ? (
                 <div
                     style={{
@@ -174,6 +180,7 @@ export const SearchViewLogs = ({ type, datasourceId, index, query }) => {
                         background: "white",
                         borderRadius: "8px",
                         boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                        height: "100%",
                     }}
                 >
                     <Spin tip="Loading logs..." size="large" />
@@ -187,7 +194,7 @@ export const SearchViewLogs = ({ type, datasourceId, index, query }) => {
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
-                        // height: "100%",
+                        height: "100%",
                         background: "white",
                         borderRadius: "8px",
                         boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
@@ -211,6 +218,7 @@ export const SearchViewLogs = ({ type, datasourceId, index, query }) => {
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
+                        height: "100%",
                         background: "white",
                         borderRadius: "8px",
                         boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
@@ -227,6 +235,7 @@ export const SearchViewLogs = ({ type, datasourceId, index, query }) => {
                             borderBottom: "1px solid #f0f0f0",
                             background: "linear-gradient(135deg, rgb(0 0 0) 0%, rgb(191 191 191) 100%)",
                             borderRadius: "8px 8px 0 0",
+                            flexShrink: 0,
                         }}
                     >
                         <Space align="center">
@@ -252,7 +261,8 @@ export const SearchViewLogs = ({ type, datasourceId, index, query }) => {
                         style={{
                             flex: 1,
                             overflowY: "auto",
-                            marginTop: "10px",
+                            padding: "16px",
+                            background: "white",
                         }}
                     >
                         {renderPaginatedMessages()}

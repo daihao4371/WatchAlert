@@ -18,7 +18,9 @@ require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-ping/ping v1.1.0
 	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/google/uuid v1.6.0
 	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/olivere/elastic/v7 v7.0.32
 	github.com/prometheus/client_golang v1.20.5
 	github.com/prometheus/common v0.55.0
@@ -68,8 +70,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.28.11 // indirect
 	github.com/aws/smithy-go v1.20.2 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
-	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
-	github.com/chenzhuoyu/iasm v0.9.1 // indirect
 	github.com/clbanning/mxj/v2 v2.5.5 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -93,7 +93,6 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.6 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
@@ -108,7 +107,6 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -134,7 +132,6 @@ require (
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	go.opentelemetry.io/otel v1.36.0 // indirect
 	go.opentelemetry.io/otel/trace v1.36.0 // indirect
-	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	golang.org/x/arch v0.7.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect

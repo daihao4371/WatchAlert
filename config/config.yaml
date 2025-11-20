@@ -4,15 +4,15 @@ Server:
   mode: "release"
 
 MySQL:
-  host: w8t-mysql
+  host: 10.10.217.225
   port: 3306
   user: root
-  pass: w8t.123
+  pass: 123456
   dbName: watchalert
   timeout: 10s
 
 Redis:
-  host: w8t-redis
+  host: 10.10.217.225
   port: 6379
   pass: ""
   database: 0
