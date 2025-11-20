@@ -26,3 +26,6 @@ dist-ssr
 deploy/docker-compose/mysql
 deploy/docker-compose/redis
 
+# Claude Code 相关文件
+CLAUDE.md
+docs/
