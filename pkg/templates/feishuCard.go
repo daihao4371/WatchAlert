@@ -1,9 +1,11 @@
 package templates
 
 import (
+	"fmt"
 	"strings"
 	"watchAlert/internal/models"
 	"watchAlert/pkg/tools"
+	"watchAlert/pkg/utils"
 
 	"github.com/bytedance/sonic"
 )
@@ -82,7 +84,15 @@ func feishuTemplate(alert models.AlertCurEvent, noticeTmpl models.NoticeTemplate
 			},
 		}
 
+		// 转换cardElements为map列表
 		defaultTemplate.Card.Elements = tools.ConvertSliceToMapList(cardElements)
+
+		// 添加快捷操作按钮（如果启用）
+		actionButtonsMap := buildFeishuActionButtonsMap(alert)
+		if actionButtonsMap != nil {
+			defaultTemplate.Card.Elements = append(defaultTemplate.Card.Elements, actionButtonsMap)
+		}
+
 		defaultTemplate.Card.Header = tools.ConvertStructToMap(cardHeader)
 		cardContentString = tools.JsonMarshalToString(defaultTemplate)
 
@@ -93,4 +103,74 @@ func feishuTemplate(alert models.AlertCurEvent, noticeTmpl models.NoticeTemplate
 
 	return cardContentString
 
+}
+
+// buildFeishuActionButtonsMap 构建飞书快捷操作按钮(返回map格式)
+// 由于Elements模型不包含Actions字段,直接返回map结构
+func buildFeishuActionButtonsMap(alert models.AlertCurEvent) map[string]interface{} {
+	// 获取快捷操作配置
+	quickConfig := getQuickActionConfig()
+
+	// 检查配置是否启用且必需字段齐全
+	if !quickConfig.GetEnable() || quickConfig.BaseUrl == "" || quickConfig.SecretKey == "" {
+		return nil
+	}
+
+	// 生成快捷操作Token(24小时有效期)
+	token, err := utils.GenerateQuickToken(
+		alert.TenantId,
+		alert.Fingerprint,
+		alert.DutyUser,
+		quickConfig.SecretKey,
+	)
+	if err != nil {
+		// Token生成失败,降级处理,不显示按钮
+		return nil
+	}
+
+	// 确定API调用地址(优先使用ApiUrl,否则使用BaseUrl)
+	apiUrl := quickConfig.ApiUrl
+	if apiUrl == "" {
+		apiUrl = quickConfig.BaseUrl
+	}
+
+	// 构建按钮数组
+	buttons := []map[string]interface{}{
+		{
+			"tag":  "button",
+			"type": "primary",
+			"text": map[string]interface{}{
+				"tag":     "plain_text",
+				"content": "🔔 认领告警",
+			},
+			"url": fmt.Sprintf("%s/api/v1/alert/quick-action?action=claim&fingerprint=%s&token=%s",
+				apiUrl, alert.Fingerprint, token),
+		},
+		{
+			"tag":  "button",
+			"type": "default",
+			"text": map[string]interface{}{
+				"tag":     "plain_text",
+				"content": "🔕 静默告警",
+			},
+			"url": fmt.Sprintf("%s/api/v1/alert/quick-action?action=silence&fingerprint=%s&token=%s&duration=1h",
+				apiUrl, alert.Fingerprint, token),
+		},
+		{
+			"tag":  "button",
+			"type": "default",
+			"text": map[string]interface{}{
+				"tag":     "plain_text",
+				"content": "📊 查看详情",
+			},
+			"url": fmt.Sprintf("%s/faultCenter/detail/%s",
+				quickConfig.BaseUrl, alert.FaultCenterId),
+		},
+	}
+
+	// 返回action元素的map结构
+	return map[string]interface{}{
+		"tag":     "action",
+		"actions": buttons,
+	}
 }
