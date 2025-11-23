@@ -30,7 +30,7 @@ const METRIC_COLORS = [
     '#fa8c16', // 深橙色
 ]
 
-export const EventMetricChart = ({ data, height }) => {
+export const EventMetricChart = ({ data }) => {
     console.log(data)
     
     if (!data) {
@@ -84,7 +84,7 @@ export const EventMetricChart = ({ data, height }) => {
     })
 
     return (
-        <ResponsiveContainer width="100%" height={height ?? 200}>
+        <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <defs>
                     {seriesNames.map((name, index) => (

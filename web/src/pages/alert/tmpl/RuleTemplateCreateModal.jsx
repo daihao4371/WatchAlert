@@ -8,8 +8,7 @@ import {
     InputNumber,
     Divider,
     Card,
-    Tabs,
-    message,
+    Tabs
 } from 'antd'
 import React, { useState, useEffect } from 'react'
 import {createRuleTmpl, updateRuleTmpl} from '../../../api/ruleTmpl'
@@ -24,10 +23,8 @@ import K8sImg from "../rule/img/Kubernetes.svg";
 import ESImg from "../rule/img/ElasticSearch.svg";
 import VLogImg from "../rule/img/victorialogs.svg"
 import {getKubernetesReasonList, getKubernetesResourceList} from "../../../api/kubernetes";
-import { getDatasourceList } from "../../../api/datasource";
 import VSCodeEditor from "../../../utils/VSCodeEditor";
 import {PlusOutlined} from "@ant-design/icons";
-import {SearchViewMetrics} from "../preview/searchViewMetrics.tsx";
 
 const MyFormItemContext = React.createContext([])
 const { Option } = Select;
@@ -102,10 +99,6 @@ const RuleTemplateCreateModal = ({ visible, onClose, selectedRow, type, handleLi
     const [esRawJson, setEsRawJson] = useState('')
     const [filterCondition,setFilterCondition] = useState('') // 匹配关系
     const [queryWildcard,setQueryWildcard] = useState(0) // 匹配模式
-    const [openMetricQueryModel, setOpenMetricQueryModel] = useState(false)
-    const [viewMetricsModalKey, setViewMetricsModalKey] = useState(0)
-    const [datasourceOptions, setDatasourceOptions] = useState([])
-    const [selectedDatasourceIds, setSelectedDatasourceIds] = useState([])
     const datasourceTypeMap = {
         Prometheus: 0,
         Loki: 1,
@@ -354,85 +347,6 @@ const RuleTemplateCreateModal = ({ visible, onClose, selectedRow, type, handleLi
         setQueryWildcard(e.target.value)
     };
 
-    const handleQueryMetrics = async () => {
-        const currentPromQL = handleGetPromQL()
-        if (!currentPromQL) {
-            message.error("请先填写 PromQL")
-            return
-        }
-
-        // 获取当前表单中选择的数据源ID
-        const formValues = form.getFieldsValue()
-        const currentFormDsIds = formValues?.datasourceId
-
-        const idsFromState = currentFormDsIds && currentFormDsIds.length > 0
-            ? currentFormDsIds
-            : (selectedDatasourceIds && selectedDatasourceIds.length > 0
-                ? selectedDatasourceIds
-                : (Array.isArray(selectedRow?.datasourceId) ? selectedRow?.datasourceId : (selectedRow?.datasourceId ? [selectedRow?.datasourceId] : [])))
-
-        if (!idsFromState || idsFromState.length === 0) {
-            try {
-                let dsType = getSelectedTypeName(selectedType)
-                if (dsType === "KubernetesEvent") {
-                    dsType = "Kubernetes"
-                }
-                const res = await getDatasourceList({ type: dsType })
-                const list = res?.data || []
-                const firstId = list.length ? list[0].id : null
-                if (!firstId) {
-                    message.error("当前类型没有可用数据源")
-                    return
-                }
-                const normalized = [firstId]
-                setSelectedDatasourceIds(normalized)
-                form.setFieldsValue({ datasourceId: normalized })
-                setOpenMetricQueryModel(true)
-                return
-            } catch (error) {
-                console.error(error)
-                message.error("获取数据源失败")
-                return
-            }
-        }
-
-        // 确保 selectedDatasourceIds 与当前表单中的数据源ID一致
-        setSelectedDatasourceIds(idsFromState)
-        setOpenMetricQueryModel(true)
-    }
-
-    const handleGetDatasourceList = async () => {
-        try {
-            let dsType = getSelectedTypeName(selectedType)
-            if (dsType === "KubernetesEvent") {
-                dsType = "Kubernetes"
-            }
-            const res = await getDatasourceList({ type: dsType })
-            const ops = (res?.data || []).map((item) => ({ label: item.name, value: item.id }))
-            setDatasourceOptions(ops)
-        } catch (error) {
-            console.error(error)
-        }
-    }
-
-    useEffect(() => {
-        if (visible) {
-            handleGetDatasourceList()
-        }
-    }, [visible, selectedType])
-
-    useEffect(() => {
-        if (selectedRow?.datasourceId) {
-            const normalized = Array.isArray(selectedRow.datasourceId) ? selectedRow.datasourceId : [selectedRow.datasourceId]
-            setSelectedDatasourceIds(normalized)
-        }
-    }, [selectedRow])
-
-    const handleSelectedDsItem = (ids) => {
-        setSelectedDatasourceIds(ids)
-        form.setFieldsValue({ datasourceId: ids })
-    }
-
     return (
         <Modal
             visible={visible}
@@ -486,7 +400,7 @@ const RuleTemplateCreateModal = ({ visible, onClose, selectedRow, type, handleLi
                                 maxWidth: '100%',  // 可选：限制容器最大宽度
                             }}>
                                 {cards?.map((card, index) => (
-                                        <Card
+                                    <Card
                                         key={index}
                                         style={{
                                             height: 100,
@@ -524,43 +438,16 @@ const RuleTemplateCreateModal = ({ visible, onClose, selectedRow, type, handleLi
 
                     <br/>
 
-                    <div>
-                        <MyFormItem
-                            name="datasourceId"
-                            label="关联数据源"
-                            rules={[{required: true,}]}
-                            style={{ width: '100%' }}
-                        >
-                            <Select
-                                mode="multiple"
-                                placeholder="选择数据源"
-                                value={selectedDatasourceIds}
-                                onChange={handleSelectedDsItem}
-                                style={{ width: '100%' }}
-                                options={datasourceOptions}
-                            />
-                        </MyFormItem>
-                    </div>
-
                     {(selectedType === 0 || selectedType === 4) &&
                         <>
                             <div className="rule-config-container">
                                 <MyFormItemGroup prefix={['prometheusConfig']}>
-                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                        <MyFormItem name="promQL" label="PromQL" rules={[{required: true}]} style={{width: '100%', height: '100%'}}>
-                                            <PrometheusPromQL
-                                                value={handleGetPromQL}
-                                                setPromQL={setPromQL}
-                                            />
-                                        </MyFormItem>
-                                        <Button
-                                            type="primary"
-                                            style={{backgroundColor: '#000', borderColor: '#000', marginTop: '5px'}}
-                                            onClick={handleQueryMetrics}
-                                        >
-                                            数据预览
-                                        </Button>
-                                    </div>
+                                    <MyFormItem name="promQL" label="PromQL" rules={[{required: true}]}>
+                                        <PrometheusPromQL
+                                            value={handleGetPromQL}
+                                            setPromQL={setPromQL}
+                                        />
+                                    </MyFormItem>
 
                                     <MyFormItem name="" label="* 告警条件" rules={[{required: !exprRule}]}>
                                         {exprRule?.map((label, index) => (
@@ -1059,32 +946,6 @@ const RuleTemplateCreateModal = ({ visible, onClose, selectedRow, type, handleLi
                         </MyFormItem>
                     </div>
                 </div>
-
-                <Modal
-                    centered
-                    key={viewMetricsModalKey}
-                    open={openMetricQueryModel}
-                    onCancel={() => {
-                        setOpenMetricQueryModel(false)
-                        setViewMetricsModalKey(prev => prev + 1)
-                    }}
-                    width={1000}
-                    footer={null}
-                    styles={{
-                        body: {
-                            height: '80vh',
-                            overflowY: 'auto',
-                            padding: '12px',
-                        },
-                    }}
-                >
-                    <SearchViewMetrics
-                        key={`search-view-${viewMetricsModalKey}`}
-                        datasourceType={getSelectedTypeName(selectedType)}
-                        datasourceId={selectedDatasourceIds && selectedDatasourceIds.length > 0 ? selectedDatasourceIds : (Array.isArray(selectedRow?.datasourceId) ? selectedRow?.datasourceId : (selectedRow?.datasourceId ? [selectedRow?.datasourceId] : []))}
-                        promQL={promQL}
-                    />
-                </Modal>
 
                 {type !== 'view' &&
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

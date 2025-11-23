@@ -12,8 +12,6 @@ export const TableWithPagination = ({
   showTotal,
   loading,
   locale,
-  size,
-  sticky,
 }) => (
   <>
     <div
@@ -32,8 +30,6 @@ export const TableWithPagination = ({
           y: scrollY,
           x: 'max-content',
         }}
-        size={size}
-        sticky={sticky}
         style={{
           backgroundColor: '#fff',
           borderRadius: '8px',

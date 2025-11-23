@@ -23,21 +23,3 @@ dist-ssr
 *.sln
 *.sw?
 yarn.lock
- 
-# Build outputs (CRA/Next/Static export)
-build
-.next
-out
-storybook-static
- 
-# Test coverage and caches
-coverage
-.cache
- 
-# Frontend model directories (exclude generated or large model assets)
-models/
-model/
-src/models/
-src/model/
-public/models/
-assets/models/

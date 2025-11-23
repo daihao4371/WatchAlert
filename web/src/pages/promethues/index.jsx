@@ -344,20 +344,12 @@ export const PrometheusPromQL = (props) => {
 
     useEffect(() => {
         if (viewRef.current && props.value !== undefined) {
-            const currentDoc = viewRef.current.state.doc.toString();
-            // 只有当值真正改变时才更新
-            if (currentDoc !== props.value) {
-                const newValueLength = props.value.length;
-                const currentPosition = viewRef.current.state.selection.main.head;
-                // 确保光标位置不超过新文档长度
-                const safePosition = Math.min(currentPosition, newValueLength);
-
-                const transaction = viewRef.current.state.update({
-                    changes: { from: 0, to: viewRef.current.state.doc.length, insert: props.value },
-                    selection: { anchor: safePosition } // 使用安全的光标位置
-                });
-                viewRef.current.dispatch(transaction);
-            }
+            const currentPosition = viewRef.current.state.selection.main.head;
+            const transaction = viewRef.current.state.update({
+                changes: { from: 0, to: viewRef.current.state.doc.length, insert: props.value },
+                selection: { anchor: currentPosition } // 保持光标位置
+            });
+            viewRef.current.dispatch(transaction);
         }
     }, [props.value]);
 

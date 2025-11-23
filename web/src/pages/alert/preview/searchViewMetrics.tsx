@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useState } from "react"
-import { Spin, Empty, Typography, Space, Alert, Segmented, Tag, Tooltip, Button } from "antd"
-import { BarChartOutlined } from "@ant-design/icons"
-import { queryRangePromMetrics } from '../../../api/other'
-import { EventMetricChart } from '../../chart/eventMetricChart'
-import { TableWithPagination } from '../../../utils/TableWithPagination'
-import { HandleShowTotal } from '../../../utils/lib'
+import { useEffect, useState } from "react"
+import { Spin, Tag, Empty, Card, Typography, Space, Divider, Row, Col, Alert } from "antd"
+import {
+    ClockCircleOutlined,
+    TagsOutlined,
+    BarChartOutlined,
+    FileTextOutlined,
+} from "@ant-design/icons"
+import {queryPromMetrics} from '../../../api/other'
 
 const { Title, Text } = Typography
 
-interface RangeResultItem {
+interface MetricItem {
     metric: Record<string, string>
-    values: [number, string][]
+    value: [number, string]
 }
 
 interface SearchViewMetricsProps {
@@ -20,11 +22,9 @@ interface SearchViewMetricsProps {
 }
 
 export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: SearchViewMetricsProps) => {
-    const [chartData, setChartData] = useState<any[]>([])
+    const [metrics, setMetrics] = useState<MetricItem[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [view, setView] = useState<'chart' | 'table'>('chart')
-    const [pagination, setPagination] = useState({ index: 1, size: 10, total: 0 })
 
     useEffect(() => {
         const fetchMetrics = async () => {
@@ -32,23 +32,23 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
                 setLoading(true)
                 setError(null)
 
-                const now = Math.floor(Date.now() / 1000)
                 const params = {
                     datasourceIds: datasourceId.join(","),
                     query: promQL,
-                    startTime: now - 600,
-                    endTime: now,
-                    step: 10,
                 }
 
-                const res = await queryRangePromMetrics(params)
+                const res = await queryPromMetrics(params)
 
                 if (res.code !== 200) {
                     throw new Error(res.msg || "请求失败")
                 }
 
-                setChartData(res.data)
-                setPagination((p) => ({ ...p, index: 1, total: computeRows(res.data).length }))
+                // 提取所有 result 数据
+                const allResults = res.data
+                    .filter((item) => item.status === "success" && item.data?.result?.length > 0)
+                    .flatMap((item) => item.data.result)
+
+                setMetrics(allResults)
             } catch (err) {
                 setError(err instanceof Error ? err.message : "网络错误")
                 console.error("Fetch error:", err)
@@ -65,78 +65,6 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
     const formatTimestamp = (timestamp: number) => {
         return new Date(timestamp * 1000).toLocaleString("zh-CN")
     }
-
-    const computeRows = useMemo(() => {
-        return (data: any[]) => {
-            const results = (data || [])
-                .filter((item: any) => item.status === 'success' && item.data?.result?.length > 0)
-                .flatMap((item: any) => item.data.result as any[])
-            return results.map((item: any, i: number) => {
-                const values: [number, string][] = item.values || []
-                const nums = values.map((v) => parseFloat(v[1])).filter((n) => !Number.isNaN(n))
-                const latestVal = nums.length ? nums[nums.length - 1] : null
-                const min = nums.length ? Math.min(...nums) : null
-                const max = nums.length ? Math.max(...nums) : null
-                const avg = nums.length ? Number((nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(4)) : null
-                const latestTs = values.length ? values[values.length - 1][0] : 0
-                const name = item.metric?.__name__ || 'metric'
-                const labelsEntries = Object.entries(item.metric).filter(([k]) => k !== '__name__')
-                const labelsStr = labelsEntries.map(([k, v]) => `${k}=${v}`).join(', ')
-                return {
-                    id: `${name}-${i}-${latestTs}`,
-                    metric: name,
-                    labelsEntries,
-                    labelsStr,
-                    latest: latestVal,
-                    min,
-                    avg,
-                    max,
-                    points: nums.length,
-                    latestTime: formatTimestamp(latestTs),
-                }
-            })
-        }
-    }, [])
-
-    const rows = useMemo(() => computeRows(chartData), [chartData, computeRows])
-    const pageRows = useMemo(() => {
-        const start = (pagination.index - 1) * pagination.size
-        const end = start + pagination.size
-        return rows.slice(start, end)
-    }, [rows, pagination])
-
-    const columns = [
-        {
-            title: 'Metric',
-            dataIndex: 'metric',
-            key: 'metric',
-            render: (text: string) => <Tag color="geekblue">{text}</Tag>,
-        },
-        {
-            title: 'Labels',
-            dataIndex: 'labelsEntries',
-            key: 'labels',
-            render: (entries: [string, string][], record: any) => (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-                    {entries.map(([k, v]) => (
-                        <Tag key={`${k}-${v}`} color="volcano" style={{ margin: 0 }}>{k}={v}</Tag>
-                    ))}
-                    <Tooltip title="复制全部标签">
-                        <Button size="small" onClick={() => navigator.clipboard.writeText(record.labelsStr)}>复制</Button>
-                    </Tooltip>
-                </div>
-            ),
-        },
-        { title: 'Latest', dataIndex: 'latest', key: 'latest' },
-        { title: 'Min', dataIndex: 'min', key: 'min' },
-        { title: 'Avg', dataIndex: 'avg', key: 'avg' },
-        { title: 'Max', dataIndex: 'max', key: 'max' },
-        { title: 'Points', dataIndex: 'points', key: 'points' },
-        { title: 'Latest Time', dataIndex: 'latestTime', key: 'latestTime' },
-    ]
-
-    const onPageChange = (page: number) => setPagination((p) => ({ ...p, index: page }))
-    const onPageSizeChange = (_: number, size: number) => setPagination({ index: 1, size, total: rows.length })
 
     if (loading) {
         return (
@@ -165,7 +93,7 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
         return <Alert message="查询失败" description={error} type="error" showIcon style={{ margin: "20px 0" }} />
     }
 
-    if (!chartData || chartData.length === 0) {
+    if (metrics.length === 0) {
         return (
             <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -187,15 +115,14 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
     }
 
     return (
-        <div style={{ height: "100%", display: 'flex', flexDirection: 'column' }}>
+        <div style={{ minHeight: "500px" }}>
             {/* Header */}
             <div
                 style={{
-                    padding: "16px 20px",
+                    padding: "20px 24px",
                     borderBottom: "1px solid #f0f0f0",
                     background: "linear-gradient(135deg, rgb(0 0 0) 0%, rgb(191 191 191) 100%)",
                     borderRadius: "8px 8px 0 0",
-                    flexShrink: 0,
                 }}
             >
                 <Space align="center">
@@ -204,44 +131,101 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
                         {datasourceType}
                     </Title>
                 </Space>
-                <div style={{ float: 'right' }}>
-                    <Segmented
-                        options={[{ label: '折线图', value: 'chart' }, { label: '表格', value: 'table' }]}
-                        value={view}
-                        onChange={(val) => setView(val as 'chart' | 'table')}
-                        size="small"
-                        style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 6 }}
-                    />
-                </div>
             </div>
 
-            {view === 'chart' ? (
-                <div style={{ padding: '16px', flex: 1, display: 'flex' }}>
-                    <EventMetricChart data={chartData} height={"100%"} />
-                    <style>{`
-                      .recharts-brush-texts { display: none; }
-                      .recharts-brush .recharts-brush-traveller { fill: #000; stroke: #000; opacity: 0.8; }
-                      .recharts-brush .recharts-brush-slide { fill: #f5f5f5; }
-                    `}</style>
-                </div>
-            ) : (
-                <div style={{ padding: '16px' }}>
-                    <TableWithPagination
-                        columns={columns}
-                        dataSource={pageRows}
-                        pagination={pagination}
-                        onPageChange={onPageChange}
-                        onPageSizeChange={onPageSizeChange}
-                        scrollY={520}
-                        rowKey={(r) => r.id}
-                        showTotal={HandleShowTotal}
-                        loading={loading}
-                        locale={{}}
-                        size="small"
-                        sticky={true}
-                    />
-                </div>
-            )}
+            {/* Metrics 列表 */}
+            <div>
+                <Space direction="vertical" size="middle" style={{ width: "100%", marginTop: "10px" }}>
+                    {metrics.map((item, index) => {
+                        const metricKeys = Object.keys(item.metric).filter((key) => key !== "__name__")
+
+                        return (
+                            <Card
+                                key={index}
+                                hoverable
+                                style={{
+                                    borderLeft: `4px solid`,
+                                    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                                }}
+                            >
+                                <Row gutter={[16, 16]}>
+                                    {/* 左侧：Metric 信息 */}
+                                    <Col span={16}>
+                                        <Space direction="vertical" size="small" style={{ width: "100%" }}>
+                                            {/* 标题 */}
+                                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                                <BarChartOutlined style={{ color: "#1890ff", fontSize: "16px" }} />
+                                                <Text strong style={{ fontSize: "16px" }}>
+                                                    Metric #{index + 1}
+                                                </Text>
+                                            </div>
+
+                                            <Divider style={{ margin: "8px 0" }} />
+
+                                            {/* 标签信息 */}
+                                            {metricKeys.length > 0 && (
+                                                <div>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+                                                        <TagsOutlined style={{ color: "#666", fontSize: "14px" }} />
+                                                        <Text type="secondary" style={{ fontSize: "12px", fontWeight: 500 }}>
+                                                            标签信息
+                                                        </Text>
+                                                    </div>
+                                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                                                        {metricKeys.map((key) => (
+                                                            <Tag key={key} color="blue" style={{ margin: 0 }}>
+                                                                <Text style={{ fontSize: "12px" }}>
+                                                                    <span style={{ fontWeight: 600 }}>{key}:</span> {item.metric[key]}
+                                                                </Text>
+                                                            </Tag>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </Space>
+                                    </Col>
+
+                                    {/* 右侧：数值和时间 */}
+                                    <Col span={8}>
+                                        <div
+                                            style={{
+                                                textAlign: "right",
+                                                height: "100%",
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                justifyContent: "center",
+                                            }}
+                                        >
+                                            <div style={{ marginBottom: "8px" }}>
+                                                <Text type="secondary" style={{ fontSize: "12px", display: "block" }}>
+                                                    数值
+                                                </Text>
+                                                <Text
+                                                    style={{
+                                                        fontSize: "24px",
+                                                        fontWeight: "bold",
+                                                        color: item.value[1] === "0" ? "#52c41a" : "#1890ff",
+                                                    }}
+                                                >
+                                                    {Number.parseFloat(item.value[1]).toLocaleString()}
+                                                </Text>
+                                            </div>
+
+                                            <div>
+                                                <Text type="secondary" style={{ fontSize: "11px", display: "block" }}>
+                                                    <ClockCircleOutlined style={{ marginRight: "4px" }} />
+                                                    时间戳
+                                                </Text>
+                                                <Text style={{ fontSize: "12px", color: "#666" }}>{formatTimestamp(item.value[0])}</Text>
+                                            </div>
+                                        </div>
+                                    </Col>
+                                </Row>
+                            </Card>
+                        )
+                    })}
+                </Space>
+            </div>
         </div>
     )
 }
