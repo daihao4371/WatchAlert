@@ -117,12 +117,15 @@ export const OnceProbing = () => {
             setLoading(true)
             const values = await form.validateFields() // Validate all fields, including advanced options
 
+            // 获取 timeout 值,如果未设置则使用默认值 5
+            const timeoutValue = values.probingEndpointConfig?.strategy?.timeout || 5;
+
             const params = {
                 ruleType: probingType,
                 probingEndpointConfig: {
                     endpoint: values.probingEndpointConfig.endpoint,
                     strategy: {
-                        timeout: Number.parseInt(values.probingEndpointConfig.strategy.timeout, 10),
+                        timeout: Number.parseInt(timeoutValue, 10),
                     },
                 },
             }
@@ -134,7 +137,7 @@ export const OnceProbing = () => {
                 }
 
                 // Process header
-                if (values.probingEndpointConfig.http.header) {
+                if (values.probingEndpointConfig?.http?.header) {
                     const headerObject = {};
                     values.probingEndpointConfig.http.header.forEach((headerItem) => {
                         if (
@@ -150,16 +153,18 @@ export const OnceProbing = () => {
                     params.probingEndpointConfig.http.header = headerObject;
                 }
 
-                if (methodType === "POST" && values.probingEndpointConfig.http.body) {
+                if (methodType === "POST" && values.probingEndpointConfig?.http?.body) {
                     params.probingEndpointConfig.http.body = values.probingEndpointConfig.http.body;
                 }
             }
 
             // Conditionally add ICMP specific configurations
             if (probingType === "ICMP") {
+                const icmpInterval = values.probingEndpointConfig?.icmp?.interval || 1;
+                const icmpCount = values.probingEndpointConfig?.icmp?.count || 10;
                 params.probingEndpointConfig.icmp = {
-                    interval: Number.parseInt(values.probingEndpointConfig.icmp.interval, 10),
-                    count: Number.parseInt(values.probingEndpointConfig.icmp.count, 10),
+                    interval: Number.parseInt(icmpInterval, 10),
+                    count: Number.parseInt(icmpCount, 10),
                 }
             }
 
