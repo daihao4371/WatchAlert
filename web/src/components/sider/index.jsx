@@ -127,38 +127,43 @@ export const ComponentSider = () => {
         token: { colorBgContainer, borderRadiusLG },
     } = theme.useToken()
 
-    const handleMenuClick = (key, path) => {
-        if (path) {
-            setSelectedMenuKey(key);
-            navigate(path);
+    const handleMenuClick = (info) => {
+        const menuItem = findMenuItem(userInfo?.role === 'admin' ? adminMenuItems : userMenuItems, info.key);
+        if (menuItem?.path) {
+            setSelectedMenuKey(info.key);
+            navigate(menuItem.path);
         }
     };
 
-    const renderMenuItems = (items) => {
+    const findMenuItem = (items, key) => {
+        for (const item of items) {
+            if (item.key === key) return item;
+            if (item.children) {
+                const found = item.children.find(child => child.key === key);
+                if (found) return found;
+            }
+        }
+        return null;
+    };
+
+    const convertMenuItems = (items) => {
         return items.map(item => {
             if (item.children) {
-                return (
-                    <SubMenu key={item.key} icon={item.icon} title={item.label}>
-                        {item.children.map(child => (
-                            <Menu.Item
-                                key={child.key}
-                                onClick={() => handleMenuClick(child.key, child.path)}
-                            >
-                                {child.label}
-                            </Menu.Item>
-                        ))}
-                    </SubMenu>
-                );
+                return {
+                    key: item.key,
+                    icon: item.icon,
+                    label: item.label,
+                    children: item.children.map(child => ({
+                        key: child.key,
+                        label: child.label,
+                    })),
+                };
             }
-            return (
-                <Menu.Item
-                    key={item.key}
-                    icon={item.icon}
-                    onClick={() => handleMenuClick(item.key, item.path)}
-                >
-                    {item.label}
-                </Menu.Item>
-            );
+            return {
+                key: item.key,
+                icon: item.icon,
+                label: item.label,
+            };
         });
     };
 
@@ -167,17 +172,23 @@ export const ComponentSider = () => {
         navigate("/login")
     }
 
-    const userMenu = (
-        <Menu mode="vertical">
-            <Menu.Item key="profile" icon={<UserOutlined />}>
-                <Link to="/profile">个人信息</Link>
-            </Menu.Item>
-            <Menu.Divider />
-            <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout} danger>
-                退出登录
-            </Menu.Item>
-        </Menu>
-    )
+    const userPopoverMenuItems = [
+        {
+            key: "profile",
+            icon: <UserOutlined />,
+            label: <Link to="/profile">个人信息</Link>,
+        },
+        {
+            type: 'divider',
+        },
+        {
+            key: "logout",
+            icon: <LogoutOutlined />,
+            label: "退出登录",
+            danger: true,
+            onClick: handleLogout,
+        },
+    ]
 
     useEffect(() => {
         fetchUserInfo()
@@ -316,7 +327,11 @@ export const ComponentSider = () => {
                     />
                 </div>
 
-                <Dropdown overlay={tenantMenu} trigger={["click"]} placement="bottomLeft">
+                <Dropdown menu={{ items: tenantList.map((item) => ({
+                    key: item.index,
+                    label: item.label,
+                    onClick: () => changeTenant({ key: item.index, item: { props: { name: item.label, value: item.value } } })
+                })) }} trigger={["click"]} placement="bottomLeft">
                     <div style={{
                         display: 'flex',
                         marginTop: '-40px',
@@ -358,9 +373,9 @@ export const ComponentSider = () => {
                     mode="inline"
                     selectedKeys={[selectedMenuKey]}
                     style={{ background: 'transparent'}}
-                >
-                    {renderMenuItems(userInfo?.role === 'admin' ? adminMenuItems : userMenuItems)}
-                </Menu>
+                    items={convertMenuItems(userInfo?.role === 'admin' ? adminMenuItems : userMenuItems)}
+                    onClick={handleMenuClick}
+                />
             </div>
 
             {/* 绝对定位底部用户信息 */}
@@ -373,7 +388,7 @@ export const ComponentSider = () => {
                 borderTop: '1px solid rgba(255, 255, 255, 0.1)',
                 background: '#000',
             }}>
-                <Popover content={userMenu} trigger="click" placement="topRight">
+                <Popover content={<Menu items={userPopoverMenuItems} mode="vertical" />} trigger="click" placement="topRight">
                     <div style={{
                         display: "flex",
                         alignItems: "center",

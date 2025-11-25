@@ -349,24 +349,27 @@ export const AlertCurrentEvent = (props) => {
             key: "action",
             width: "100px",
             render: (_, record) => {
-                const menu = (
-                    <Menu>
-                        <Menu.Item onClick={() => {handleClaimOne(record)}} >
-                            去认领
-                        </Menu.Item>
-                        {record.status !== "silenced" && (
-                            <Menu.Item onClick={() => {handleSilenceModalOpen(record)}} >
-                                去静默
-                            </Menu.Item>
-                        )}
-                        <Menu.Item onClick={() => openAiAnalyze(record)} disabled={analyzeLoading}>
-                            {analyzeLoading ? "Ai 分析中" : "Ai 分析"}
-                        </Menu.Item>
-                    </Menu>
-                );
+                const menuItems = [
+                    {
+                        key: 'claim',
+                        label: '去认领',
+                        onClick: () => handleClaimOne(record),
+                    },
+                    ...(record.status !== "silenced" ? [{
+                        key: 'silence',
+                        label: '去静默',
+                        onClick: () => handleSilenceModalOpen(record),
+                    }] : []),
+                    {
+                        key: 'ai',
+                        label: analyzeLoading ? "Ai 分析中" : "Ai 分析",
+                        disabled: analyzeLoading,
+                        onClick: () => openAiAnalyze(record),
+                    },
+                ];
 
                 return (
-                    <Dropdown overlay={menu} trigger={['click']}>
+                    <Dropdown menu={{ items: menuItems }} trigger={['click']}>
                         <EllipsisOutlined style={{ fontSize: 20, cursor: 'pointer' }} />
                     </Dropdown>
                 );

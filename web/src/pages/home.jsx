@@ -348,7 +348,8 @@ export const Home = () => {
                 showSearch
                 optionFilterProp="children"
                 loading={loading}
-                dropdownStyle={{ maxHeight: 400, overflow: "auto" }}
+                popupMatchSelectWidth={false}
+                listHeight={400}
               >
                 {faultCenters.length === 0 && <Option disabled>暂无可用故障中心</Option>}
                 {faultCenters.map((center) => (
@@ -423,7 +424,8 @@ export const Home = () => {
                 showSearch
                 optionFilterProp="children"
                 loading={loading}
-                dropdownStyle={{ maxHeight: 400, overflow: "auto" }}
+                popupMatchSelectWidth={false}
+                listHeight={400}
               >
                 {faultCenters.length === 0 && <Option disabled>暂无可用故障中心</Option>}
                 {faultCenters.map((center) => (

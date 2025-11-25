@@ -68,20 +68,17 @@ export const FaultCenter = () => {
     }
 
     // 三个点的下拉菜单
-    const renderMenu = (record) => (
-        <Menu>
-            <Menu.Item
-                key="delete"
-                icon={<DeleteOutlined />}
-                onClick={(e) => {
-                    e.domEvent.stopPropagation() // 阻止事件冒泡
-                    showDeleteConfirm(record) // 显示删除确认弹窗
-                }}
-            >
-                删除
-            </Menu.Item>
-        </Menu>
-    )
+    const getMenuItems = (record) => [
+        {
+            key: "delete",
+            icon: <DeleteOutlined />,
+            label: "删除",
+            onClick: (info) => {
+                info.domEvent.stopPropagation() // 阻止事件冒泡
+                showDeleteConfirm(record) // 显示删除确认弹窗
+            },
+        },
+    ]
 
     // 定义样式常量
     const styles = {
@@ -203,7 +200,7 @@ export const FaultCenter = () => {
                                     {/* 标题部分 */}
                                     <div style={styles.cardTitle}>
                                         <span>{item.name}</span>
-                                        <Dropdown overlay={renderMenu(item)} trigger={["click"]} overlayStyle={{ zIndex: 9999 }}>
+                                        <Dropdown menu={{ items: getMenuItems(item) }} trigger={["click"]} dropdownRender={(menu) => <div style={{ zIndex: 9999 }}>{menu}</div>}>
                                             <MoreOutlined
                                                 onClick={(e) => {
                                                     e.stopPropagation()
