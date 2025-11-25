@@ -119,14 +119,37 @@ func buildDingdingActionCard(alert models2.AlertCurEvent, noticeTmpl models2.Not
 			Text:           "#### " + Title + "\n\n" + EventText,
 			BtnOrientation: "1", // 按钮纵向排列，移动端体验更好
 			Btns: []models2.ActionCardBtn{
+				// 认领告警按钮
 				{
 					Title:     "🔔 认领告警",
 					ActionURL: fmt.Sprintf("%s/api/v1/alert/quick-action?action=claim&fingerprint=%s&token=%s", apiUrl, alert.Fingerprint, token),
 				},
+				// 静默告警按钮(默认1小时,保持兼容)
 				{
 					Title:     "🔕 静默告警",
 					ActionURL: fmt.Sprintf("%s/api/v1/alert/quick-action?action=silence&fingerprint=%s&token=%s&duration=1h", apiUrl, alert.Fingerprint, token),
 				},
+				// 静默1小时
+				{
+					Title:     "🕐 静默1小时",
+					ActionURL: fmt.Sprintf("%s/api/v1/alert/quick-action?action=silence&fingerprint=%s&token=%s&duration=1h", apiUrl, alert.Fingerprint, token),
+				},
+				// 静默6小时
+				{
+					Title:     "🕕 静默6小时",
+					ActionURL: fmt.Sprintf("%s/api/v1/alert/quick-action?action=silence&fingerprint=%s&token=%s&duration=6h", apiUrl, alert.Fingerprint, token),
+				},
+				// 静默24小时
+				{
+					Title:     "🕙 静默24小时",
+					ActionURL: fmt.Sprintf("%s/api/v1/alert/quick-action?action=silence&fingerprint=%s&token=%s&duration=24h", apiUrl, alert.Fingerprint, token),
+				},
+				// 自定义静默(跳转到自定义页面)
+				{
+					Title:     "⚙️ 自定义静默",
+					ActionURL: fmt.Sprintf("%s/api/v1/alert/quick-silence?fingerprint=%s&token=%s", apiUrl, alert.Fingerprint, token),
+				},
+				// 查看详情按钮
 				{
 					Title:     "📊 查看详情",
 					ActionURL: fmt.Sprintf("%s/faultCenter/detail/%s", config.BaseUrl, alert.FaultCenterId),

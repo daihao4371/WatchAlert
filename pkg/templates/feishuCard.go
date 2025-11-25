@@ -136,6 +136,7 @@ func buildFeishuActionButtonsMap(alert models.AlertCurEvent) map[string]interfac
 
 	// 构建按钮数组
 	buttons := []map[string]interface{}{
+		// 认领告警按钮
 		{
 			"tag":  "button",
 			"type": "primary",
@@ -146,6 +147,7 @@ func buildFeishuActionButtonsMap(alert models.AlertCurEvent) map[string]interfac
 			"url": fmt.Sprintf("%s/api/v1/alert/quick-action?action=claim&fingerprint=%s&token=%s",
 				apiUrl, alert.Fingerprint, token),
 		},
+		// 静默告警按钮(默认1小时,保持兼容)
 		{
 			"tag":  "button",
 			"type": "default",
@@ -156,6 +158,51 @@ func buildFeishuActionButtonsMap(alert models.AlertCurEvent) map[string]interfac
 			"url": fmt.Sprintf("%s/api/v1/alert/quick-action?action=silence&fingerprint=%s&token=%s&duration=1h",
 				apiUrl, alert.Fingerprint, token),
 		},
+		// 静默1小时
+		{
+			"tag":  "button",
+			"type": "default",
+			"text": map[string]interface{}{
+				"tag":     "plain_text",
+				"content": "🕐 静默1小时",
+			},
+			"url": fmt.Sprintf("%s/api/v1/alert/quick-action?action=silence&fingerprint=%s&token=%s&duration=1h",
+				apiUrl, alert.Fingerprint, token),
+		},
+		// 静默6小时
+		{
+			"tag":  "button",
+			"type": "default",
+			"text": map[string]interface{}{
+				"tag":     "plain_text",
+				"content": "🕕 静默6小时",
+			},
+			"url": fmt.Sprintf("%s/api/v1/alert/quick-action?action=silence&fingerprint=%s&token=%s&duration=6h",
+				apiUrl, alert.Fingerprint, token),
+		},
+		// 静默24小时
+		{
+			"tag":  "button",
+			"type": "default",
+			"text": map[string]interface{}{
+				"tag":     "plain_text",
+				"content": "🕙 静默24小时",
+			},
+			"url": fmt.Sprintf("%s/api/v1/alert/quick-action?action=silence&fingerprint=%s&token=%s&duration=24h",
+				apiUrl, alert.Fingerprint, token),
+		},
+		// 自定义静默(跳转到自定义页面)
+		{
+			"tag":  "button",
+			"type": "default",
+			"text": map[string]interface{}{
+				"tag":     "plain_text",
+				"content": "⚙️ 自定义静默",
+			},
+			"url": fmt.Sprintf("%s/api/v1/alert/quick-silence?fingerprint=%s&token=%s",
+				apiUrl, alert.Fingerprint, token),
+		},
+		// 查看详情按钮
 		{
 			"tag":  "button",
 			"type": "default",
