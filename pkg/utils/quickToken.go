@@ -11,10 +11,10 @@ import (
 )
 
 // QuickActionToken 快捷操作Token载荷
+// 注意: 不包含username字段,需要用户登录后才能获取真实操作人
 type QuickActionToken struct {
 	TenantId    string `json:"tenantId"`    // 租户ID
 	Fingerprint string `json:"fingerprint"` // 告警指纹
-	Username    string `json:"username"`    // 操作用户（值班人）
 	ExpireAt    int64  `json:"expireAt"`    // 过期时间戳
 }
 
@@ -24,13 +24,12 @@ const (
 )
 
 // GenerateQuickToken 生成快捷操作Token
-// 使用简单的HMAC-SHA256签名，避免引入JWT库
+// username参数已废弃,仅为兼容性保留,实际不使用
 func GenerateQuickToken(tenantId, fingerprint, username, secretKey string) (string, error) {
-	// 构建Token载荷
+	// 构建Token载荷(不包含username,需要用户登录后获取)
 	payload := QuickActionToken{
 		TenantId:    tenantId,
 		Fingerprint: fingerprint,
-		Username:    username,
 		ExpireAt:    time.Now().Add(TokenTTL).Unix(),
 	}
 
