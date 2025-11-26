@@ -288,7 +288,9 @@ export const ComponentSider = () => {
                     background: colorBgContainer,
                 }}
             >
-                <Spin tip="加载中..." size="large" />
+                <Spin size="large">
+                    <div style={{ padding: '50px' }} />
+                </Spin>
             </div>
         )
     }

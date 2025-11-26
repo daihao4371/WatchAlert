@@ -176,10 +176,13 @@ export const SearchViewLogs = ({ type, datasourceId, index, query }) => {
                         boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                     }}
                 >
-                    <Spin tip="Loading logs..." size="large" />
-                    <Text type="secondary" style={{ marginTop: "16px" }}>
-                        Please wait while we fetch the logs...
-                    </Text>
+                    <Spin size="large">
+                        <div style={{ padding: '20px' }}>
+                            <Text type="secondary">
+                                Please wait while we fetch the logs...
+                            </Text>
+                        </div>
+                    </Spin>
                 </div>
             ) : error ? (
                 <div

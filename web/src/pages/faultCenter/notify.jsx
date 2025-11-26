@@ -202,7 +202,9 @@ export const FaultCenterNotify = () => {
     if (loading) {
         return (
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "400px" }}>
-                <Spin size="large" tip="加载中..." />
+                <Spin size="large">
+                    <div style={{ padding: '50px' }} />
+                </Spin>
             </div>
         )
     }

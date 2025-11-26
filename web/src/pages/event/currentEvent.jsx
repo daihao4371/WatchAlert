@@ -1095,7 +1095,7 @@ export const AlertCurrentEvent = (props) => {
                             placeholder="选择类型"
                             style={{ width: 150 }}
                             allowClear
-                            value={selectedDataSource || null}
+                            value={selectedDataSource || undefined}
                             onChange={handleDataSourceChange}
                             options={[
                                 { value: "Prometheus", label: "Prometheus" },
@@ -1112,7 +1112,7 @@ export const AlertCurrentEvent = (props) => {
                             placeholder="告警等级"
                             style={{ width: 150 }}
                             allowClear
-                            value={selectedAlertLevel || null}
+                            value={selectedAlertLevel || undefined}
                             onChange={handleSeverityChange}
                             options={[
                                 { value: "P0", label: "P0级告警" },
