@@ -16,7 +16,7 @@ export const Home = () => {
   const contentMaxHeight = "calc(100vh)"
   const [dashboardInfo, setDashboardInfo] = useState({})
   const [faultCenters, setFaultCenters] = useState([])
-  const [selectedFaultCenter, setSelectedFaultCenter] = useState(null)
+  const [selectedFaultCenter, setSelectedFaultCenter] = useState(undefined)
   const [loading, setLoading] = useState(true)
   const [metricData, setMetricData] = useState({})
 

@@ -6,7 +6,12 @@ import { ConfigProvider } from 'antd';
 import zhCN from 'antd/es/locale/zh_CN.js';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-    <BrowserRouter>
+    <BrowserRouter
+        future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+        }}
+    >
         <ConfigProvider componentSize='middle' locale={zhCN}>
             <App />
         </ConfigProvider>

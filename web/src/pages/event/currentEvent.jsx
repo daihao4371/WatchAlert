@@ -102,7 +102,7 @@ export const AlertCurrentEvent = (props) => {
         itemsPerPage: 10, // 导出HTML的每页项目数
     })
     // 选中的告警状态
-    const [selectedStatus, setSelectedStatus] = useState(null);
+    const [selectedStatus, setSelectedStatus] = useState(undefined);
     const [comments, setComments] = useState( [])
     const [newComment, setNewComment] = useState("")
     const [sortOrder,setSortOrder] = useState(null)
@@ -1124,7 +1124,7 @@ export const AlertCurrentEvent = (props) => {
                             placeholder="告警状态"
                             style={{ width: 150 }}
                             allowClear
-                            value={selectedStatus || null}
+                            value={selectedStatus}
                             onChange={handleStatusChange}
                             options={[
                                 { value: "pre_alert", label: "预告警" },
