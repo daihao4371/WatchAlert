@@ -67,9 +67,16 @@ type ResponseGrafanaDashboardInfo struct {
 }
 
 type ResponseGrafanaDashboardMeta struct {
-	Meta meta `json:"meta"`
+	Dashboard interface{}   `json:"dashboard"` // Grafana 仪表板完整配置
+	Meta      DashboardMeta `json:"meta"`      // 仪表板元数据
 }
 
-type meta struct {
-	Url string `json:"url"`
+// DashboardMeta Grafana 仪表板元数据
+type DashboardMeta struct {
+	Url         string `json:"url"`         // 仪表板访问路径
+	IsStarred   bool   `json:"isStarred"`   // 是否被标星
+	FolderId    int64  `json:"folderId"`    // 所属文件夹 ID
+	FolderUid   string `json:"folderUid"`   // 所属文件夹 UID
+	FolderTitle string `json:"folderTitle"` // 所属文件夹标题
+	Slug        string `json:"slug"`        // URL slug
 }
