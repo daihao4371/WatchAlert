@@ -58,6 +58,7 @@ func (ds dashboardService) CreateFolder(req interface{}) (data interface{}, erro
 		Theme:               r.Theme,
 		GrafanaVersion:      r.GrafanaVersion,
 		GrafanaHost:         r.GrafanaHost,
+		GrafanaToken:        r.GrafanaToken,
 		GrafanaFolderId:     r.GrafanaFolderId,
 		GrafanaDashboardUid: r.GrafanaDashboardUid,
 	})
@@ -77,6 +78,7 @@ func (ds dashboardService) UpdateFolder(req interface{}) (data interface{}, erro
 		Theme:               r.Theme,
 		GrafanaVersion:      r.GrafanaVersion,
 		GrafanaHost:         r.GrafanaHost,
+		GrafanaToken:        r.GrafanaToken,
 		GrafanaFolderId:     r.GrafanaFolderId,
 		GrafanaDashboardUid: r.GrafanaDashboardUid,
 	})
@@ -115,8 +117,14 @@ func (ds dashboardService) ListGrafanaDashboards(req interface{}) (data interfac
 		return nil, fmt.Errorf("invalid grafana version, please change v10 or v11")
 	}
 
+	// 构建认证头
+	headers := make(map[string]string)
+	if folder.GrafanaToken != "" {
+		headers["Authorization"] = fmt.Sprintf("Bearer %s", folder.GrafanaToken)
+	}
+
 	requestURL := fmt.Sprintf("%s/api/search?%s", folder.GrafanaHost, query)
-	get, err := tools.Get(nil, requestURL, 10)
+	get, err := tools.Get(headers, requestURL, 10)
 	if err != nil {
 		return nil, fmt.Errorf("请求错误, err: %s", err.Error())
 	}
@@ -131,7 +139,14 @@ func (ds dashboardService) ListGrafanaDashboards(req interface{}) (data interfac
 
 func (ds dashboardService) GetDashboardFullUrl(req interface{}) (data interface{}, error interface{}) {
 	r := req.(*types.RequestGetGrafanaDashboard)
-	get, err := tools.Get(nil, fmt.Sprintf("%s/api/dashboards/uid/%s", r.Host, r.Uid), 10)
+
+	// 构建认证头
+	headers := make(map[string]string)
+	if r.Token != "" {
+		headers["Authorization"] = fmt.Sprintf("Bearer %s", r.Token)
+	}
+
+	get, err := tools.Get(headers, fmt.Sprintf("%s/api/dashboards/uid/%s", r.Host, r.Uid), 10)
 	if err != nil {
 		return nil, err
 	}

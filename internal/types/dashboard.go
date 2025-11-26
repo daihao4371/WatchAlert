@@ -40,6 +40,7 @@ type RequestDashboardFoldersCreate struct {
 	Theme               string `json:"theme" form:"theme"`
 	GrafanaVersion      string `json:"grafanaVersion" form:"grafanaVersion"` // v10及以下, v11及以上
 	GrafanaHost         string `json:"grafanaHost" form:"grafanaHost"`
+	GrafanaToken        string `json:"grafanaToken" form:"grafanaToken"` // Grafana API Token
 	GrafanaFolderId     string `json:"grafanaFolderId" form:"grafanaFolderId"`
 	GrafanaDashboardUid string `json:"grafanaDashboardUid" form:"grafanaDashboardUid" gorm:"-"`
 }
@@ -51,6 +52,7 @@ type RequestDashboardFoldersUpdate struct {
 	Theme               string `json:"theme" form:"theme"`
 	GrafanaVersion      string `json:"grafanaVersion" form:"grafanaVersion"` // v10及以下, v11及以上
 	GrafanaHost         string `json:"grafanaHost" form:"grafanaHost"`
+	GrafanaToken        string `json:"grafanaToken" form:"grafanaToken"` // Grafana API Token
 	GrafanaFolderId     string `json:"grafanaFolderId" form:"grafanaFolderId"`
 	GrafanaDashboardUid string `json:"grafanaDashboardUid" form:"grafanaDashboardUid" gorm:"-"`
 }
@@ -58,6 +60,7 @@ type RequestDashboardFoldersUpdate struct {
 type RequestGetGrafanaDashboard struct {
 	Theme string `json:"theme" form:"theme"`
 	Host  string `json:"host" form:"host"`
+	Token string `json:"token" form:"token"` // Grafana API Token
 	Uid   string `json:"uid" form:"uid"`
 }
 

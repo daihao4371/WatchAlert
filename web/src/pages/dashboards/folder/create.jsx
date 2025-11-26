@@ -1,4 +1,4 @@
-import {Modal, Form, Input, Button, Segmented, Drawer, Radio} from 'antd'
+import {Form, Input, Button, Segmented, Drawer, Radio} from 'antd'
 import React, {useEffect, useState} from 'react'
 import {createDashboardFolder, updateDashboardFolder} from '../../../api/dashboard';
 import {DownOutlined, RightOutlined} from "@ant-design/icons";
@@ -43,6 +43,7 @@ const CreateFolderModal = ({ visible, onClose, selectedRow, type, handleList }) 
                 name: selectedRow.name,
                 grafanaVersion: selectedRow.grafanaVersion,
                 grafanaHost: selectedRow.grafanaHost,
+                grafanaToken: selectedRow.grafanaToken,
                 grafanaFolderId: selectedRow.grafanaFolderId,
                 theme: selectedRow.theme,
             })
@@ -127,7 +128,13 @@ const CreateFolderModal = ({ visible, onClose, selectedRow, type, handleList }) 
                         block
                         options={radioOptions}
                         defaultValue={grafanaVersion}
-                        onChange={(e)=>{setGrafanaVersion(e?.target?.value)}}
+                        onChange={(e)=>{
+                            const newVersion = e?.target?.value
+                            setGrafanaVersion(newVersion)
+                            // 版本切换时，清除 Token 字段的验证状态
+                            form.setFieldsValue({ grafanaToken: undefined })
+                            form.validateFields(['grafanaToken']).catch(() => {})
+                        }}
                     />
                 </MyFormItem>
 
@@ -136,11 +143,23 @@ const CreateFolderModal = ({ visible, onClose, selectedRow, type, handleList }) 
                         required: true
                     },
                     {
-                        pattern: /^(http|https):\/\/.*[^\/]$/,
+                        pattern: /^(http|https):\/\/.*[^/]$/,
                         message: '请输入正确的URL格式，且结尾不应包含"/"',
                     },
                 ]}>
                     <Input placeholder="Grafana链接日志, 例如: https://xx.xx.xx"/>
+                </MyFormItem>
+
+                <MyFormItem 
+                    name="grafanaToken" 
+                    label="Grafana Token" 
+                    rules={grafanaVersion === 'v11' ? [{required: true}] : []}
+                    extra={grafanaVersion === 'v10' ? 'v10 及以下版本不需要 Token' : undefined}
+                >
+                    <Input.Password 
+                        placeholder={grafanaVersion === 'v11' ? "Grafana API Token 或 Service Account Token" : "Grafana API Token 或 Service Account Token（可选）"}
+                        disabled={grafanaVersion === 'v10'}
+                    />
                 </MyFormItem>
 
                 <MyFormItem name="grafanaFolderId" label="Grafana FolderId"  rules={[{required: true}]}>
