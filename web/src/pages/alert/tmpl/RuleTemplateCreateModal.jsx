@@ -8,11 +8,13 @@ import {
     InputNumber,
     Divider,
     Card,
-    Tabs
+    Tabs,
+    message
 } from 'antd'
 import React, { useState, useEffect } from 'react'
 import {createRuleTmpl, updateRuleTmpl} from '../../../api/ruleTmpl'
 import {useParams} from "react-router-dom";
+import {getDatasourceList} from "../../../api/datasource";
 import {PrometheusPromQL} from "../../promethues";
 import PrometheusImg from "../rule/img/Prometheus.svg";
 import LokiImg from "../rule/img/L.svg";
@@ -24,7 +26,8 @@ import ESImg from "../rule/img/ElasticSearch.svg";
 import VLogImg from "../rule/img/victorialogs.svg"
 import {getKubernetesReasonList, getKubernetesResourceList} from "../../../api/kubernetes";
 import VSCodeEditor from "../../../utils/VSCodeEditor";
-import {PlusOutlined} from "@ant-design/icons";
+import {PlusOutlined, EyeOutlined} from "@ant-design/icons";
+import {SearchViewMetrics} from "../preview/searchViewMetrics.tsx";
 
 const MyFormItemContext = React.createContext([])
 const { Option } = Select;
@@ -99,6 +102,10 @@ const RuleTemplateCreateModal = ({ visible, onClose, selectedRow, type, handleLi
     const [esRawJson, setEsRawJson] = useState('')
     const [filterCondition,setFilterCondition] = useState('') // 匹配关系
     const [queryWildcard,setQueryWildcard] = useState(0) // 匹配模式
+    const [previewVisible, setPreviewVisible] = useState(false) // 数据预览弹窗
+    const [viewMetricsModalKey, setViewMetricsModalKey] = useState(0) // 用于强制重新渲染
+    const [datasourceOptions, setDatasourceOptions] = useState([])  // 数据源列表
+    const [selectedDatasourceIds, setSelectedDatasourceIds] = useState([])  // 选择的数据源ID
     const datasourceTypeMap = {
         Prometheus: 0,
         Loki: 1,
@@ -176,12 +183,33 @@ const RuleTemplateCreateModal = ({ visible, onClose, selectedRow, type, handleLi
             setEsRawJson(selectedRow.elasticSearchConfig.rawJson)
             setFilterCondition(selectedRow.elasticSearchConfig.filterCondition)
             setQueryWildcard(selectedRow.elasticSearchConfig.queryWildcard)
+
+            // 关键修复：重置 promQL 状态，确保使用当前规则的 PromQL
+            setPromQL(selectedRow.prometheusConfig?.promQL || '')
+
+            // 关键修复：同步数据源ID选择状态
+            if (selectedRow.datasourceId && Array.isArray(selectedRow.datasourceId)) {
+                setSelectedDatasourceIds(selectedRow.datasourceId)
+            } else if (selectedRow.datasourceId) {
+                setSelectedDatasourceIds([selectedRow.datasourceId])
+            } else {
+                setSelectedDatasourceIds([])
+            }
+
+            // 关键修复：强制重新渲染数据预览组件
+            setViewMetricsModalKey(prev => prev + 1)
         }
     }, [selectedRow, form])
 
     useEffect(() => {
         handleGetKubernetesEventTypes()
-    }, [])
+        // 获取当前数据源类型的数据源列表
+        if (selectedType !== null) {
+            fetchDatasourceList(getSelectedTypeName(selectedType))
+            // 清空之前选择的数据源
+            setSelectedDatasourceIds([])
+        }
+    }, [selectedType])
 
     // 创建
     const handleFormSubmit = async (values) => {
@@ -332,11 +360,15 @@ const RuleTemplateCreateModal = ({ visible, onClose, selectedRow, type, handleLi
         setEsfilter(updatedEsFilter)
     }
 
+    // 获取当前 PromQL,优先从表单获取最新值
     const handleGetPromQL = () =>{
-        if (promQL){
-            return promQL
+        // 优先从表单获取最新的 PromQL 值,确保切换规则后获取正确的数据
+        const formPromQL = form.getFieldValue(['prometheusConfig', 'promQL'])
+        if (formPromQL) {
+            return formPromQL
         }
-        return form.getFieldValue(['prometheusConfig', 'promQL'])
+        // 如果表单中没有值,才使用状态中的 promQL
+        return promQL || ''
     }
 
     useEffect(() => {
@@ -346,6 +378,45 @@ const RuleTemplateCreateModal = ({ visible, onClose, selectedRow, type, handleLi
     const handleQueryWildcardChange = async (e) => {
         setQueryWildcard(e.target.value)
     };
+
+    // 获取数据源列表
+    const fetchDatasourceList = async (datasourceType) => {
+        try {
+            const res = await getDatasourceList({ datasourceType })
+            if (res && res.data) {
+                const options = res.data.map(item => ({
+                    label: item.name,
+                    value: item.id
+                }))
+                setDatasourceOptions(options)
+            }
+        } catch (error) {
+            console.error('获取数据源列表失败:', error)
+        }
+    }
+
+    // 打开数据预览Modal
+    const handleOpenPreview = () => {
+        const currentPromQL = handleGetPromQL()
+
+        if (!currentPromQL) {
+            message.warning('请先输入 PromQL 查询语句')
+            return
+        }
+
+        if (!selectedDatasourceIds || selectedDatasourceIds.length === 0) {
+            message.warning('请先选择数据源')
+            return
+        }
+
+        setPreviewVisible(true)
+    }
+
+    // 关闭数据预览Modal
+    const handleClosePreview = () => {
+        setPreviewVisible(false)
+        setViewMetricsModalKey(prev => prev + 1) // 强制重新渲染
+    }
 
     return (
         <Modal
@@ -448,6 +519,31 @@ const RuleTemplateCreateModal = ({ visible, onClose, selectedRow, type, handleLi
                                             setPromQL={setPromQL}
                                         />
                                     </MyFormItem>
+
+                                    {/* 数据源选择和预览按钮 */}
+                                    <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ marginBottom: '5px', fontSize: '14px', color: '#666' }}>
+                                                选择数据源 (用于数据预览)
+                                            </div>
+                                            <Select
+                                                mode="multiple"
+                                                style={{ width: '100%' }}
+                                                placeholder="请选择数据源"
+                                                value={selectedDatasourceIds}
+                                                onChange={setSelectedDatasourceIds}
+                                                options={datasourceOptions}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="primary"
+                                            icon={<EyeOutlined />}
+                                            onClick={handleOpenPreview}
+                                            style={{ marginTop: '20px' }}
+                                        >
+                                            数据预览
+                                        </Button>
+                                    </div>
 
                                     <MyFormItem name="" label="* 告警条件" rules={[{required: !exprRule}]}>
                                         {exprRule?.map((label, index) => (
@@ -961,6 +1057,30 @@ const RuleTemplateCreateModal = ({ visible, onClose, selectedRow, type, handleLi
                     </div>
                 }
             </Form>
+
+            {/* 数据预览 Modal */}
+            <Modal
+                centered
+                key={viewMetricsModalKey}
+                open={previewVisible}
+                onCancel={handleClosePreview}
+                width={1000}
+                footer={null}
+                styles={{
+                    body: {
+                        height: '80vh',
+                        overflow: 'auto',
+                        padding: '20px'
+                    }
+                }}
+            >
+                <SearchViewMetrics
+                    key={`search-view-${viewMetricsModalKey}`}
+                    datasourceType={getSelectedTypeName(selectedType)}
+                    datasourceId={selectedDatasourceIds}
+                    promQL={handleGetPromQL()}
+                />
+            </Modal>
         </Modal>
     )
 }

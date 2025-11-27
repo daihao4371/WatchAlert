@@ -39,6 +39,9 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
             try {
                 setLoading(true)
                 setError(null)
+                // 关键修复：清空旧数据,防止显示上一次的缓存数据
+                setMetrics([])
+                setTimeSeriesData([])
 
                 // 并行请求: 1) 即时数据 (用于列表视图), 2) 时间序列数据 (用于图表视图)
                 const now = Math.floor(Date.now() / 1000)
@@ -83,10 +86,16 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
             }
         }
 
-        if (datasourceId.length > 0 && promQL) {
+        // 关键修复：只有当必要参数都存在时才发起请求
+        if (datasourceId.length > 0 && promQL && promQL.trim() !== '') {
             fetchMetrics()
+        } else {
+            // 如果参数不完整,清空数据并停止加载状态
+            setMetrics([])
+            setTimeSeriesData([])
+            setLoading(false)
         }
-    }, [datasourceId, promQL])
+    }, [datasourceId, promQL, datasourceType])
 
     const formatTimestamp = (timestamp: number) => {
         return new Date(timestamp * 1000).toLocaleString("zh-CN")
