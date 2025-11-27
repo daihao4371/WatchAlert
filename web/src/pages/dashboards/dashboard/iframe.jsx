@@ -17,6 +17,7 @@ export const GrafanaDashboardComponent = () => {
             }
             const resInfo = await getFolderInfo(fParams)
             const params = {
+                folderId: fid,
                 theme: resInfo.data.theme,
                 host:  resInfo.data.grafanaHost,
                 uid: did

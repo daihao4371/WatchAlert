@@ -40,8 +40,8 @@ type RequestDashboardFoldersCreate struct {
 	Theme               string `json:"theme" form:"theme"`
 	GrafanaVersion      string `json:"grafanaVersion" form:"grafanaVersion"` // v10及以下, v11及以上
 	GrafanaHost         string `json:"grafanaHost" form:"grafanaHost"`
-	GrafanaToken        string `json:"grafanaToken" form:"grafanaToken"` // Grafana API Token
 	GrafanaFolderId     string `json:"grafanaFolderId" form:"grafanaFolderId"`
+	GrafanaToken        string `json:"grafanaToken" form:"grafanaToken"` // Service Account Token for Grafana v11+
 	GrafanaDashboardUid string `json:"grafanaDashboardUid" form:"grafanaDashboardUid" gorm:"-"`
 }
 
@@ -52,16 +52,16 @@ type RequestDashboardFoldersUpdate struct {
 	Theme               string `json:"theme" form:"theme"`
 	GrafanaVersion      string `json:"grafanaVersion" form:"grafanaVersion"` // v10及以下, v11及以上
 	GrafanaHost         string `json:"grafanaHost" form:"grafanaHost"`
-	GrafanaToken        string `json:"grafanaToken" form:"grafanaToken"` // Grafana API Token
 	GrafanaFolderId     string `json:"grafanaFolderId" form:"grafanaFolderId"`
+	GrafanaToken        string `json:"grafanaToken" form:"grafanaToken"` // Service Account Token for Grafana v11+
 	GrafanaDashboardUid string `json:"grafanaDashboardUid" form:"grafanaDashboardUid" gorm:"-"`
 }
 
 type RequestGetGrafanaDashboard struct {
-	Theme string `json:"theme" form:"theme"`
-	Host  string `json:"host" form:"host"`
-	Token string `json:"token" form:"token"` // Grafana API Token
-	Uid   string `json:"uid" form:"uid"`
+	FolderId string `json:"folderId" form:"folderId"` // Folder ID,用于获取 Token (v11 需要)
+	Theme    string `json:"theme" form:"theme"`
+	Host     string `json:"host" form:"host"`
+	Uid      string `json:"uid" form:"uid"`
 }
 
 type ResponseGrafanaDashboardInfo struct {
@@ -70,16 +70,9 @@ type ResponseGrafanaDashboardInfo struct {
 }
 
 type ResponseGrafanaDashboardMeta struct {
-	Dashboard interface{}   `json:"dashboard"` // Grafana 仪表板完整配置
-	Meta      DashboardMeta `json:"meta"`      // 仪表板元数据
+	Meta meta `json:"meta"`
 }
 
-// DashboardMeta Grafana 仪表板元数据
-type DashboardMeta struct {
-	Url         string `json:"url"`         // 仪表板访问路径
-	IsStarred   bool   `json:"isStarred"`   // 是否被标星
-	FolderId    int64  `json:"folderId"`    // 所属文件夹 ID
-	FolderUid   string `json:"folderUid"`   // 所属文件夹 UID
-	FolderTitle string `json:"folderTitle"` // 所属文件夹标题
-	Slug        string `json:"slug"`        // URL slug
+type meta struct {
+	Url string `json:"url"`
 }

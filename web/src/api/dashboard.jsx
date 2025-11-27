@@ -2,7 +2,7 @@ import http from '../utils/http';
 import { message } from 'antd';
 import {HandleApiError} from "../utils/lib";
 
-async function getFolderList(params) {
+async function getFolderList(params?: any) {
     try {
         const res = await http('get', '/api/w8t/dashboard/listFolder', params);
         return res;
@@ -12,7 +12,7 @@ async function getFolderList(params) {
     }
 }
 
-async function getFolderInfo(params) {
+async function getFolderInfo(params?: any) {
     try {
         const res = await http('get', '/api/w8t/dashboard/getFolder', params);
         return res;
@@ -60,7 +60,7 @@ async function updateDashboardFolder(params) {
     }
 }
 
-async function getGrafanaDashboardList(params) {
+async function getGrafanaDashboardList(params?: any) {
     try {
         const res = await http('get', '/api/w8t/dashboard/listGrafanaDashboards', params);
         return res;
@@ -70,7 +70,7 @@ async function getGrafanaDashboardList(params) {
     }
 }
 
-async function getDashboardFullUrl(params) {
+async function getDashboardFullUrl(params?: any) {
     try {
         const res = await http('get', '/api/w8t/dashboard/getDashboardFullUrl', params);
         return res;

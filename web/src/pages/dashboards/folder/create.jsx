@@ -1,7 +1,7 @@
-import {Form, Input, Button, Segmented, Drawer, Radio} from 'antd'
+import {Modal, Form, Input, Button, Segmented, Drawer, Radio, message} from 'antd'
 import React, {useEffect, useState} from 'react'
 import {createDashboardFolder, updateDashboardFolder} from '../../../api/dashboard';
-import {DownOutlined, RightOutlined} from "@ant-design/icons";
+import {DownOutlined, RightOutlined, CopyOutlined} from "@ant-design/icons";
 
 const MyFormItemContext = React.createContext([])
 
@@ -19,6 +19,7 @@ const CreateFolderModal = ({ visible, onClose, selectedRow, type, handleList }) 
     const [form] = Form.useForm()
     const [theme,setTheme] = useState('light')
     const [folderHelpExpanded, setFolderHelpExpanded] = useState(false);
+    const [configHelpExpanded, setConfigHelpExpanded] = useState(false);
     const [grafanaVersion, setGrafanaVersion] = useState('v10')
     // 禁止输入空格
     const [spaceValue, setSpaceValue] = useState('')
@@ -43,8 +44,8 @@ const CreateFolderModal = ({ visible, onClose, selectedRow, type, handleList }) 
                 name: selectedRow.name,
                 grafanaVersion: selectedRow.grafanaVersion,
                 grafanaHost: selectedRow.grafanaHost,
-                grafanaToken: selectedRow.grafanaToken,
                 grafanaFolderId: selectedRow.grafanaFolderId,
+                grafanaToken: selectedRow.grafanaToken,
                 theme: selectedRow.theme,
             })
 
@@ -101,6 +102,20 @@ const CreateFolderModal = ({ visible, onClose, selectedRow, type, handleList }) 
         setFolderHelpExpanded(!folderHelpExpanded);
     };
 
+    const toggleConfigHelp = () => {
+        setConfigHelpExpanded(!configHelpExpanded);
+    };
+
+    // 复制到剪贴板功能
+    const copyToClipboard = (text, type) => {
+        navigator.clipboard.writeText(text).then(() => {
+            message.success(`${type}已复制到剪贴板`);
+        }).catch(err => {
+            message.error('复制失败，请手动复制');
+            console.error('复制失败:', err);
+        });
+    };
+
     const radioOptions = [
         {
             label: 'v11及以上',
@@ -128,13 +143,7 @@ const CreateFolderModal = ({ visible, onClose, selectedRow, type, handleList }) 
                         block
                         options={radioOptions}
                         defaultValue={grafanaVersion}
-                        onChange={(e)=>{
-                            const newVersion = e?.target?.value
-                            setGrafanaVersion(newVersion)
-                            // 版本切换时，清除 Token 字段的验证状态
-                            form.setFieldsValue({ grafanaToken: undefined })
-                            form.validateFields(['grafanaToken']).catch(() => {})
-                        }}
+                        onChange={(e)=>{setGrafanaVersion(e?.target?.value)}}
                     />
                 </MyFormItem>
 
@@ -143,28 +152,29 @@ const CreateFolderModal = ({ visible, onClose, selectedRow, type, handleList }) 
                         required: true
                     },
                     {
-                        pattern: /^(http|https):\/\/.*[^/]$/,
+                        pattern: /^(http|https):\/\/.*[^\/]$/,
                         message: '请输入正确的URL格式，且结尾不应包含"/"',
                     },
                 ]}>
                     <Input placeholder="Grafana链接日志, 例如: https://xx.xx.xx"/>
                 </MyFormItem>
 
-                <MyFormItem 
-                    name="grafanaToken" 
-                    label="Grafana Token" 
-                    rules={grafanaVersion === 'v11' ? [{required: true}] : []}
-                    extra={grafanaVersion === 'v10' ? 'v10 及以下版本不需要 Token' : undefined}
-                >
-                    <Input.Password 
-                        placeholder={grafanaVersion === 'v11' ? "Grafana API Token 或 Service Account Token" : "Grafana API Token 或 Service Account Token（可选）"}
-                        disabled={grafanaVersion === 'v10'}
-                    />
-                </MyFormItem>
-
                 <MyFormItem name="grafanaFolderId" label="Grafana FolderId"  rules={[{required: true}]}>
                     <Input style={{width:'100%'}} placeholder="Grafana目录Id" min={1}/>
                 </MyFormItem>
+
+                {grafanaVersion === 'v11' && (
+                    <MyFormItem
+                        name="grafanaToken"
+                        label="Service Account Token"
+                        rules={[{required: true, message: 'Grafana 11版本需要提供 Service Account Token'}]}
+                    >
+                        <Input.Password
+                            style={{width:'100%'}}
+                            placeholder="请输入 Grafana Service Account Token"
+                        />
+                    </MyFormItem>
+                )}
 
                 <MyFormItem name="theme" label="背景颜色">
                     <Segmented
@@ -187,6 +197,218 @@ const CreateFolderModal = ({ visible, onClose, selectedRow, type, handleList }) 
                         创建
                     </Button>
                 </div>
+                {grafanaVersion === 'v11' && (
+                    <div style={{marginTop: 24}}>
+                        <div
+                            onClick={toggleConfigHelp}
+                            style={{
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '8px 0',
+                                userSelect: 'none'
+                            }}
+                        >
+                            {configHelpExpanded ? <DownOutlined/> : <RightOutlined/>}
+                            <h4 style={{margin: 0}}>Grafana 嵌入配置说明</h4>
+                        </div>
+
+                        {configHelpExpanded && (
+                            <div style={{
+                                marginLeft: 12,
+                                padding: 12,
+                                backgroundColor: '#fff8e1',
+                                borderRadius: 4,
+                                border: '1px solid #ffd54f'
+                            }}>
+                                <div style={{marginBottom: 12}}>
+                                    <strong>⚠️ 重要提示:</strong> 为使 Grafana 仪表盘正常嵌入到 WatchAlert,
+                                    需要在 Grafana 服务器的配置文件 <code>grafana.ini</code> 中添加以下配置:
+                                </div>
+                                <div style={{position: 'relative'}}>
+                                    <pre style={{
+                                        backgroundColor: '#f5f5f5',
+                                        padding: 12,
+                                        borderRadius: 4,
+                                        overflow: 'auto',
+                                        fontSize: 12,
+                                        margin: '8px 0',
+                                        paddingRight: 40
+                                    }}>
+{`[security]
+allow_embedding = true
+cookie_samesite = none
+cookie_secure = false
+
+[auth.proxy]
+enabled = true
+enable_login_token = true
+header_name = X-WEBAUTH-USER
+header_property = username
+auto_sign_up = true
+
+[auth.anonymous]
+enabled = true
+org_name = Main Org.
+org_role = Viewer
+
+[auth.basic]
+enabled = true
+
+[auth]
+disable_login_form = false
+
+[users]
+viewers_can_edit = false
+default_theme = dark`}
+                                    </pre>
+                                    <Button
+                                        size="small"
+                                        icon={<CopyOutlined />}
+                                        onClick={() => copyToClipboard(`[security]
+allow_embedding = true
+cookie_samesite = none
+cookie_secure = false
+
+[auth.proxy]
+enabled = true
+enable_login_token = true
+header_name = X-WEBAUTH-USER
+header_property = username
+auto_sign_up = true
+
+[auth.anonymous]
+enabled = true
+org_name = Main Org.
+org_role = Viewer
+
+[auth.basic]
+enabled = true
+
+[auth]
+disable_login_form = false
+
+[users]
+viewers_can_edit = false
+default_theme = dark`, 'Grafana 配置')}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 12,
+                                            right: 12
+                                        }}
+                                    >
+                                        复制
+                                    </Button>
+                                </div>
+                                <div style={{fontSize: 12, color: '#666', marginTop: 8}}>
+                                    <strong>⚠️ 重要配置说明:</strong>
+                                    <ul style={{margin: '4px 0', paddingLeft: 20}}>
+                                        <li><code>org_name = Main Org.</code> 必须与 Grafana 中实际的组织名称完全一致(包括大小写和标点)</li>
+                                        <li><code>[auth.basic] enabled = true</code> 必须保持启用,否则管理员无法登录</li>
+                                        <li><code>disable_login_form = false</code> 不要设为 true,否则会影响管理员登录</li>
+                                        <li>配置完成后重启 Grafana: <code>systemctl restart grafana-server</code></li>
+                                    </ul>
+                                </div>
+
+                                <div style={{marginTop: 16, marginBottom: 12}}>
+                                    <strong>获取 Service Account Token:</strong>
+                                </div>
+                                <div style={{marginBottom: 8, fontSize: 13}}>
+                                    使用以下 curl 命令创建 Token (将参数替换为实际值):
+                                </div>
+                                <div style={{position: 'relative'}}>
+                                    <pre style={{
+                                        backgroundColor: '#f5f5f5',
+                                        padding: 12,
+                                        borderRadius: 4,
+                                        overflow: 'auto',
+                                        fontSize: 12,
+                                        margin: '8px 0',
+                                        paddingRight: 40
+                                    }}>
+{`curl -s -u <username>:<password> -X POST \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"token"}' \\
+  "http://<grafana-host>:<port>/api/serviceaccounts/2/tokens"`}
+                                    </pre>
+                                    <Button
+                                        size="small"
+                                        icon={<CopyOutlined />}
+                                        onClick={() => copyToClipboard(`curl -s -u <username>:<password> -X POST \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"token"}' \\
+  "http://<grafana-host>:<port>/api/serviceaccounts/2/tokens"`, 'Token 获取命令')}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 12,
+                                            right: 12
+                                        }}
+                                    >
+                                        复制
+                                    </Button>
+                                </div>
+                                <div style={{fontSize: 12, color: '#666', marginTop: 8}}>
+                                    <strong>参数说明:</strong>
+                                    <ul style={{margin: '4px 0', paddingLeft: 20}}>
+                                        <li><code>&lt;username&gt;:&lt;password&gt;</code> - Grafana 管理员账号和密码</li>
+                                        <li><code>&lt;grafana-host&gt;:&lt;port&gt;</code> - Grafana 服务器地址和端口</li>
+                                        <li><code>&lt;service-account-id&gt;</code> - Service Account 的 ID (在 Grafana 的 Service Accounts 页面查看)</li>
+                                    </ul>
+                                </div>
+
+                                <div style={{marginTop: 12}}>
+                                    <strong>关于 iframe 嵌入和登录问题:</strong>
+                                    <ul style={{margin: '8px 0', paddingLeft: 20}}>
+                                        <li>
+                                            <strong>重要:</strong> Service Account Token 仅用于 API 调用获取仪表盘列表,
+                                            不能用于 iframe 嵌入的身份验证
+                                        </li>
+                                        <li>
+                                            <strong>iframe 嵌入必须启用匿名访问:</strong> 设置 <code>[auth.anonymous] enabled = true</code>
+                                            才能在 iframe 中无需登录直接访问仪表盘(只读权限)
+                                        </li>
+                                        <li>
+                                            <strong>管理员登录方式:</strong> 启用匿名访问后,管理员仍可正常登录!
+                                            直接访问 Grafana 登录页面 (如 <code>http://your-grafana:3000/login</code>),
+                                            使用管理员账号密码登录即可
+                                        </li>
+                                        <li>
+                                            <strong>安全建议:</strong> 使用 <code>org_role = Viewer</code> 确保匿名用户只有查看权限,
+                                            管理员账号不受影响
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div style={{
+                                    marginTop: 12,
+                                    padding: 8,
+                                    backgroundColor: '#fff3cd',
+                                    borderRadius: 4,
+                                    fontSize: 12,
+                                    border: '1px solid #ffc107'
+                                }}>
+                                    <strong>⚠️ 如果无法登录 Grafana 管理后台:</strong>
+                                    <ol style={{margin: '8px 0', paddingLeft: 20}}>
+                                        <li>编辑 <code>grafana.ini</code> 文件,临时设置 <code>[auth.anonymous] enabled = false</code></li>
+                                        <li>重启 Grafana 服务</li>
+                                        <li>使用管理员账号登录</li>
+                                        <li>登录成功后,再改回 <code>enabled = true</code> 并重启</li>
+                                    </ol>
+                                </div>
+                                <div style={{
+                                    marginTop: 12,
+                                    padding: 8,
+                                    backgroundColor: '#e3f2fd',
+                                    borderRadius: 4,
+                                    fontSize: 12
+                                }}>
+                                    <strong>💡 提示:</strong> 修改配置后需要重启 Grafana 服务才能生效。
+                                    建议在测试环境先验证配置是否正确。
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
                 <div style={{marginTop: 24}}>
                     <div
                         onClick={toggleFolderHelp}

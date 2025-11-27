@@ -58,8 +58,8 @@ func (ds dashboardService) CreateFolder(req interface{}) (data interface{}, erro
 		Theme:               r.Theme,
 		GrafanaVersion:      r.GrafanaVersion,
 		GrafanaHost:         r.GrafanaHost,
-		GrafanaToken:        r.GrafanaToken,
 		GrafanaFolderId:     r.GrafanaFolderId,
+		GrafanaToken:        r.GrafanaToken,
 		GrafanaDashboardUid: r.GrafanaDashboardUid,
 	})
 	if err != nil {
@@ -78,8 +78,8 @@ func (ds dashboardService) UpdateFolder(req interface{}) (data interface{}, erro
 		Theme:               r.Theme,
 		GrafanaVersion:      r.GrafanaVersion,
 		GrafanaHost:         r.GrafanaHost,
-		GrafanaToken:        r.GrafanaToken,
 		GrafanaFolderId:     r.GrafanaFolderId,
+		GrafanaToken:        r.GrafanaToken,
 		GrafanaDashboardUid: r.GrafanaDashboardUid,
 	})
 	if err != nil {
@@ -102,11 +102,13 @@ func (ds dashboardService) DeleteFolder(req interface{}) (data interface{}, erro
 func (ds dashboardService) ListGrafanaDashboards(req interface{}) (data interface{}, error interface{}) {
 	r := req.(*types.RequestDashboardFoldersQuery)
 
+	// 获取仪表盘文件夹配置
 	folder, err := ds.ctx.DB.Dashboard().GetDashboardFolder(r.TenantId, r.ID)
 	if err != nil {
 		return nil, err
 	}
 
+	// 根据 Grafana 版本构建查询参数
 	var query string
 	switch folder.GrafanaVersion {
 	case types.GrafanaV11:
@@ -117,18 +119,20 @@ func (ds dashboardService) ListGrafanaDashboards(req interface{}) (data interfac
 		return nil, fmt.Errorf("invalid grafana version, please change v10 or v11")
 	}
 
-	// 构建认证头
+	// 构建请求 headers (v11 需要 Token 认证)
 	headers := make(map[string]string)
-	if folder.GrafanaToken != "" {
+	if folder.GrafanaVersion == types.GrafanaV11 && folder.GrafanaToken != "" {
 		headers["Authorization"] = fmt.Sprintf("Bearer %s", folder.GrafanaToken)
 	}
 
+	// 发送请求到 Grafana API
 	requestURL := fmt.Sprintf("%s/api/search?%s", folder.GrafanaHost, query)
 	get, err := tools.Get(headers, requestURL, 10)
 	if err != nil {
 		return nil, fmt.Errorf("请求错误, err: %s", err.Error())
 	}
 
+	// 解析响应
 	var d []types.ResponseGrafanaDashboardInfo
 	if err := tools.ParseReaderBody(get.Body, &d); err != nil {
 		return nil, fmt.Errorf("读取body错误, err: %s", err.Error())
@@ -140,22 +144,30 @@ func (ds dashboardService) ListGrafanaDashboards(req interface{}) (data interfac
 func (ds dashboardService) GetDashboardFullUrl(req interface{}) (data interface{}, error interface{}) {
 	r := req.(*types.RequestGetGrafanaDashboard)
 
-	// 构建认证头
+	// 构建请求 headers (如果提供了 folderId,则查询获取 Token)
 	headers := make(map[string]string)
-	if r.Token != "" {
-		headers["Authorization"] = fmt.Sprintf("Bearer %s", r.Token)
+	if r.FolderId != "" {
+		// 通过 folder ID 获取配置信息,以获取 token (用于 v11 API 认证)
+		folder, err := ds.ctx.DB.Dashboard().GetDashboardFolder("", r.FolderId)
+		if err == nil && folder.GrafanaVersion == types.GrafanaV11 && folder.GrafanaToken != "" {
+			headers["Authorization"] = fmt.Sprintf("Bearer %s", folder.GrafanaToken)
+		}
 	}
 
-	get, err := tools.Get(headers, fmt.Sprintf("%s/api/dashboards/uid/%s", r.Host, r.Uid), 10)
+	// 请求 Grafana API 获取仪表盘元数据
+	requestURL := fmt.Sprintf("%s/api/dashboards/uid/%s", r.Host, r.Uid)
+	get, err := tools.Get(headers, requestURL, 10)
 	if err != nil {
 		return nil, err
 	}
 
+	// 解析响应
 	var d types.ResponseGrafanaDashboardMeta
 	if err := tools.ParseReaderBody(get.Body, &d); err != nil {
 		return nil, err
 	}
 
+	// 构建完整 URL (iframe 嵌入需要 Grafana 启用匿名访问)
 	full := r.Host + d.Meta.Url + "?theme=" + r.Theme
 	return full, nil
 }

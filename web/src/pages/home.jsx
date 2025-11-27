@@ -135,21 +135,19 @@ export const Home = () => {
           borderWidth: 2,
         },
         label: {
-          show: true,
-          formatter: "{b}: {c} ({d}%)",
-          fontSize: 12,
-          color: "#000",
+          show: false,
+          position: "center",
         },
         emphasis: {
           label: {
             show: true,
-            fontSize: "14",
+            fontSize: "18",
             fontWeight: "bold",
             color: "#000",
           },
         },
         labelLine: {
-          show: true,
+          show: false,
         },
         data: [
           {

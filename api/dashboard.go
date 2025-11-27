@@ -1,11 +1,10 @@
 package api
 
 import (
+	"github.com/gin-gonic/gin"
 	middleware "watchAlert/internal/middleware"
 	"watchAlert/internal/services"
 	"watchAlert/internal/types"
-
-	"github.com/gin-gonic/gin"
 )
 
 type dashboardController struct{}

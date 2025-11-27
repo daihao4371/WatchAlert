@@ -67,7 +67,22 @@ func ParserVariables(annotations string, data map[string]interface{}) string {
 	// 使用正则表达式替换所有匹配的变量
 	return re.ReplaceAllStringFunc(annotations, func(match string) string {
 		variable := match[2 : len(match)-1] // 提取变量名
-		return fmt.Sprintf("%v", getJSONValue(data, variable))
+		value := getJSONValue(data, variable)
+
+		// 特殊处理: 如果变量名是 TimeRemaining 且值为数字类型,自动格式化为带单位的文本
+		// 这样可以兼容用户配置 ${TimeRemaining} 时自动显示友好格式
+		if variable == "TimeRemaining" {
+			switch v := value.(type) {
+			case float64:
+				return fmt.Sprintf("%.0f 天", v)
+			case int:
+				return fmt.Sprintf("%d 天", v)
+			case int64:
+				return fmt.Sprintf("%d 天", v)
+			}
+		}
+
+		return fmt.Sprintf("%v", value)
 	})
 }
 

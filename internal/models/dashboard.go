@@ -16,7 +16,7 @@ type DashboardFolders struct {
 	Theme               string `json:"theme" form:"theme"`
 	GrafanaVersion      string `json:"grafanaVersion" form:"grafanaVersion"` // v10及以下, v11及以上
 	GrafanaHost         string `json:"grafanaHost" form:"grafanaHost"`
-	GrafanaToken        string `json:"grafanaToken" form:"grafanaToken"`     // Grafana API Token 或 Service Account Token
 	GrafanaFolderId     string `json:"grafanaFolderId" form:"grafanaFolderId"`
+	GrafanaToken        string `json:"grafanaToken" form:"grafanaToken"` // Service Account Token for Grafana v11+
 	GrafanaDashboardUid string `json:"grafanaDashboardUid" form:"grafanaDashboardUid" gorm:"-"`
 }
