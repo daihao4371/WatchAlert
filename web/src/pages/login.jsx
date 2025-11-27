@@ -137,8 +137,8 @@ export const Login = () => {
             {/* 左侧插画区 */}
             <div className="hidden md:flex w-1/2 flex-col justify-center items-center bg-black p-12 space-y-8">
                 <Illustration1 />
-                <h2 className="text-3xl tracking-wide font-medium">WatchAlert 告警引擎</h2>
-                <p className="text-gray-400 max-w-md text-center">
+                <h2 className="text-3xl tracking-wide font-semibold">WatchAlert 告警引擎</h2>
+                <p className="text-gray-300 max-w-md text-center leading-relaxed">
                     实时监控 · 安全可靠 · 快速部署
                 </p>
                 <Illustration2 />
@@ -150,19 +150,19 @@ export const Login = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="bg-white text-black rounded-2xl shadow-xl w-full max-w-md p-8"
+                    className="bg-white text-black rounded-2xl shadow-2xl w-full max-w-md p-10"
                 >
-                    <h1 className="text-2xl font-medium mb-2">欢迎回来</h1>
-                    <p className="text-gray-600 mb-8">请登录以继续使用 WatchAlert</p>
+                    <h1 className="text-3xl font-semibold mb-3">欢迎回来</h1>
+                    <p className="text-gray-700 mb-8 text-base">请登录以继续使用 WatchAlert</p>
                     {!showOidcButtons ? (
                             <div>
-                                <form onSubmit={onFinish} className="space-y-6">
+                                <form onSubmit={onFinish} className="space-y-5">
                                     <div>
                                         <input
                                             type="text"
                                             name="username"
                                             placeholder="用户名"
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black focus:ring-opacity-20 hover:border-gray-400 transition-all"
                                             required
                                         />
                                     </div>
@@ -171,22 +171,22 @@ export const Login = () => {
                                             type="password"
                                             name="password"
                                             placeholder="密码"
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black focus:ring-opacity-20 hover:border-gray-400 transition-all"
                                             required
                                         />
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <label className="flex items-center space-x-2 cursor-pointer">
+                                    <div className="flex items-center justify-between pt-1">
+                                        <label className="flex items-center space-x-2 cursor-pointer group">
                                             <input
                                                 type="checkbox"
                                                 className="form-checkbox h-4 w-4 text-black rounded border-gray-300"
                                             />
-                                            <span className="text-sm text-gray-600">记住我</span>
+                                            <span className="text-sm text-gray-700 group-hover:text-black transition-colors">记住我</span>
                                         </label>
                                     </div>
                                     <button
                                         type="submit"
-                                        className="w-full bg-black text-white py-3 rounded-lg hover:bg-gray-800 transition-colors"
+                                        className="w-full bg-black text-white font-medium py-3.5 rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg hover:shadow-xl"
                                     >
                                         登录
                                     </button>
@@ -194,22 +194,22 @@ export const Login = () => {
                                         <button
                                             type="button"
                                             onClick={handleShowModal}
-                                            className="text-sm text-gray-600 hover:text-black underline mt-4"
+                                            className="text-sm text-gray-700 hover:text-black underline decoration-2 underline-offset-2 mt-3 transition-colors"
                                         >
                                             ➡️ 点击初始化 admin 密码
                                         </button>
                                     )}
                                 </form>
-                                <p className="text-black text-center text-sm py-3 rounded-lg" onClick={()=> setShowOidcButtons(true)}>Login using SSO service</p>
+                                <p className="text-gray-700 hover:text-black text-center text-sm font-medium py-4 mt-4 cursor-pointer border-t border-gray-200 transition-colors" onClick={()=> setShowOidcButtons(true)}>使用 SSO 服务登录</p>
                             </div>
                         ):(
                             <div>
                                 <button onClick={handleOidcLogin}
-                                    className="w-full py-3 border border-gray-300 text-black rounded-lg hover:bg-gray-100 transition-colors text-center"
+                                    className="w-full py-3.5 border-2 border-gray-300 text-black font-medium rounded-lg hover:bg-gray-100 hover:border-gray-400 active:scale-[0.98] transition-all text-center shadow-sm hover:shadow-md"
                                 >
-                                    Login with Oidc
+                                    使用 OIDC 登录
                                 </button>
-                                <p className="text-black text-center text-sm py-3 rounded-lg" onClick={()=> setShowOidcButtons(false)}>Login as administrator</p>
+                                <p className="text-gray-700 hover:text-black text-center text-sm font-medium py-4 mt-4 cursor-pointer border-t border-gray-200 transition-colors" onClick={()=> setShowOidcButtons(false)}>管理员登录</p>
                             </div>
                         )
                     }
@@ -225,44 +225,45 @@ export const Login = () => {
                     transition={{ duration: 0.3 }}
                     className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 backdrop-blur-sm"
                 >
-                    <div className="bg-white text-black p-8 rounded-xl shadow-2xl max-w-md w-full">
-                        <h2 className="text-2xl font-medium mb-6">设置管理员密码</h2>
-                        <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                    <div className="bg-white text-black p-10 rounded-2xl shadow-2xl max-w-md w-full mx-4">
+                        <h2 className="text-2xl font-semibold mb-2">设置管理员密码</h2>
+                        <p className="text-gray-700 mb-6 text-sm">首次使用需要为管理员账号设置密码</p>
+                        <form onSubmit={handlePasswordSubmit} className="space-y-5">
                             <div>
-                                <label htmlFor="init-password" className="block text-sm font-medium text-gray-700 mb-1">
+                                <label htmlFor="init-password" className="block text-sm font-medium text-gray-800 mb-2">
                                     设置密码
                                 </label>
                                 <input
                                     type="password"
                                     id="init-password"
                                     name="password"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-black"
+                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black focus:ring-opacity-20 hover:border-gray-400 transition-all"
                                     required
                                 />
                             </div>
                             <div>
-                                <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1">
+                                <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-800 mb-2">
                                     确认密码
                                 </label>
                                 <input
                                     type="password"
                                     id="confirm-password"
                                     name="confirm-password"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-black"
+                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black focus:ring-opacity-20 hover:border-gray-400 transition-all"
                                     required
                                 />
                             </div>
-                            <div className="flex justify-end space-x-3 mt-6">
+                            <div className="flex justify-end space-x-3 pt-4">
                                 <button
                                     type="button"
                                     onClick={handleHideModal}
-                                    className="px-4 py-2 text-gray-600 hover:text-black transition"
+                                    className="px-6 py-2.5 text-gray-700 hover:text-black font-medium transition-colors"
                                 >
                                     取消
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
+                                    className="px-6 py-2.5 bg-black text-white font-medium rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg hover:shadow-xl"
                                 >
                                     提交
                                 </button>
