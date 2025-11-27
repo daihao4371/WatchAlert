@@ -36,15 +36,22 @@ func (p Ssler) Pilot(option EndpointOption) (EndpointValue, error) {
 	notAfter := cert.NotAfter   // 证书过期时间
 	currentTime := time.Now()
 
-	// 计算剩余有效期（单位：天）
+	// 计算剩余有效期(单位:天)
 	timeRemaining := int64(notAfter.Sub(currentTime).Hours() / 24)
 
+	// 格式化日期为中文友好格式: "2025年6月16日 星期一 17:41:05"
+	startTimeFormatted := formatChineseDate(notBefore)
+	expireTimeFormatted := formatChineseDate(notAfter)
+
 	detail = SslInformation{
-		Address:       option.Endpoint,
-		StartTime:     notBefore.Format("2006-01-02"), // 格式化开始时间
-		ExpireTime:    notAfter.Format("2006-01-02"),  // 格式化过期时间
-		TimeRemaining: float64(timeRemaining),
-		ResponseTime:  float64(time.Since(startTime).Milliseconds()),
+		Address:             option.Endpoint,
+		StartTime:           notBefore.Format("2006-01-02"), // 基础格式(兼容性保留)
+		ExpireTime:          notAfter.Format("2006-01-02"),  // 基础格式(兼容性保留)
+		StartTimeFormatted:  startTimeFormatted,             // 中文友好格式
+		ExpireTimeFormatted: expireTimeFormatted,            // 中文友好格式
+		TimeRemaining:       float64(timeRemaining),
+		TimeRemainingText:   fmt.Sprintf("%d天", timeRemaining), // 带单位的文本
+		ResponseTime:        float64(time.Since(startTime).Milliseconds()),
 	}
 
 	return convertSslerToEndpointValues(detail), nil
@@ -52,10 +59,36 @@ func (p Ssler) Pilot(option EndpointOption) (EndpointValue, error) {
 
 func convertSslerToEndpointValues(detail SslInformation) EndpointValue {
 	return EndpointValue{
-		"address":       detail.Address,
-		"StartTime":     detail.StartTime,
-		"ExpireTime":    detail.ExpireTime,
-		"TimeRemaining": detail.TimeRemaining,
-		"ResponseTime":  detail.ResponseTime,
+		"address":             detail.Address,
+		"StartTime":           detail.StartTime,
+		"ExpireTime":          detail.ExpireTime,
+		"StartTimeFormatted":  detail.StartTimeFormatted,  // 中文友好格式的颁发日期
+		"ExpireTimeFormatted": detail.ExpireTimeFormatted, // 中文友好格式的截止日期
+		"TimeRemaining":       detail.TimeRemaining,
+		"TimeRemainingText":   detail.TimeRemainingText, // 添加带单位的文本字段
+		"ResponseTime":        detail.ResponseTime,
 	}
+}
+
+// formatChineseDate 将时间格式化为中文友好格式: "2025年6月16日 星期一 17:41:05"
+func formatChineseDate(t time.Time) string {
+	// 星期映射
+	weekdays := map[time.Weekday]string{
+		time.Sunday:    "星期日",
+		time.Monday:    "星期一",
+		time.Tuesday:   "星期二",
+		time.Wednesday: "星期三",
+		time.Thursday:  "星期四",
+		time.Friday:    "星期五",
+		time.Saturday:  "星期六",
+	}
+
+	// 格式化为: "2025年6月16日 星期一 17:41:05"
+	return fmt.Sprintf("%d年%d月%d日 %s %s",
+		t.Year(),
+		t.Month(),
+		t.Day(),
+		weekdays[t.Weekday()],
+		t.Format("15:04:05"),
+	)
 }

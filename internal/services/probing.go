@@ -191,6 +191,8 @@ func (m probingService) List(req interface{}) (interface{}, interface{}) {
 			value.PSSL.StartTime = nv["StartTime"]
 			value.PSSL.ResponseTime = nv["ResponseTime"]
 			value.PSSL.TimeRemaining = nv["TimeRemaining"]
+			value.PSSL.StartTimeFormatted = nv["StartTimeFormatted"]   // 中文友好格式的颁发日期
+			value.PSSL.ExpireTimeFormatted = nv["ExpireTimeFormatted"] // 中文友好格式的截止日期
 		}
 	}
 

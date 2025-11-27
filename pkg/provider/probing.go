@@ -75,13 +75,19 @@ type HttperInformation struct {
 
 type SslInformation struct {
 	Address string `json:"address"`
-	// 证书开始时间
+	// 证书开始时间(基础格式)
 	StartTime string
-	// 证书过期时间
+	// 证书过期时间(基础格式)
 	ExpireTime string
+	// 证书开始时间(中文友好格式)
+	StartTimeFormatted string
+	// 证书过期时间(中文友好格式)
+	ExpireTimeFormatted string
 	// 剩余有效天数
 	TimeRemaining float64
-	// 响应时间（毫秒）
+	// 剩余有效天数(带单位文本)
+	TimeRemainingText string
+	// 响应时间(毫秒)
 	ResponseTime float64
 }
 

@@ -97,6 +97,16 @@ func (m *ConsumeProbing) filterEvent(event models.ProbingEvent) bool {
 	case false:
 		if event.LastSendTime == 0 || event.LastEvalTime >= event.LastSendTime+event.RepeatNoticeInterval*60 {
 			newEvent := event
+
+			// 重要修复:从最新的探测value缓存中刷新Labels,避免覆盖掉producer更新的数据
+			latestValue := GetProbingValueMap(models.BuildProbingValueCacheKey(event.TenantId, event.RuleId))
+			if len(latestValue) > 0 {
+				// 将最新的探测数据合并到Labels中
+				for k, v := range latestValue {
+					newEvent.Labels[k] = v
+				}
+			}
+
 			newEvent.LastSendTime = time.Now().Unix()
 			m.ctx.Redis.Probing().SetProbingEventCache(newEvent, 0)
 			return false

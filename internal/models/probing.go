@@ -69,10 +69,12 @@ type Ptcp struct {
 }
 
 type Pssl struct {
-	ExpireTime    string `json:"expireTime"`
-	ResponseTime  string `json:"responseTime"`
-	StartTime     string `json:"startTime"`
-	TimeRemaining string `json:"timeRemaining"`
+	ExpireTime          string `json:"expireTime"`
+	ResponseTime        string `json:"responseTime"`
+	StartTime           string `json:"startTime"`
+	TimeRemaining       string `json:"timeRemaining"`
+	StartTimeFormatted  string `json:"startTimeFormatted"`  // 中文友好格式的颁发日期
+	ExpireTimeFormatted string `json:"expireTimeFormatted"` // 中文友好格式的截止日期
 }
 
 type ProbingEndpointConfig struct {
