@@ -210,8 +210,7 @@ func buildFeishuActionButtonsMap(alert models.AlertCurEvent) map[string]interfac
 				"tag":     "plain_text",
 				"content": "📊 查看详情",
 			},
-			"url": fmt.Sprintf("%s/faultCenter/detail/%s",
-				quickConfig.BaseUrl, alert.FaultCenterId),
+			"url": buildDetailUrl(alert, quickConfig.BaseUrl),
 		},
 	}
 
@@ -220,4 +219,15 @@ func buildFeishuActionButtonsMap(alert models.AlertCurEvent) map[string]interfac
 		"tag":     "action",
 		"actions": buttons,
 	}
+}
+
+// buildDetailUrl 构建详情页URL
+// 如果有FaultCenterId,跳转到故障中心详情页
+// 否则跳转到对应的监控规则列表页
+func buildDetailUrl(alert models.AlertCurEvent, baseUrl string) string {
+	if alert.FaultCenterId != "" {
+		return fmt.Sprintf("%s/faultCenter/detail/%s", baseUrl, alert.FaultCenterId)
+	}
+	// Probing事件没有FaultCenterId,跳转到拨测规则列表
+	return fmt.Sprintf("%s/probing", baseUrl)
 }
