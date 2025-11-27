@@ -135,8 +135,11 @@ export const Home = () => {
           borderWidth: 2,
         },
         label: {
-          show: false,
-          position: "center",
+          show: true,
+          formatter: "{b}: {c} ({d}%)",
+          fontSize: 14,
+          fontWeight: "500",
+          color: "#000",
         },
         emphasis: {
           label: {
@@ -147,7 +150,10 @@ export const Home = () => {
           },
         },
         labelLine: {
-          show: false,
+          show: true,
+          lineStyle: {
+            color: "#999",
+          },
         },
         data: [
           {
