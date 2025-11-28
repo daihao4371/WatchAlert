@@ -367,7 +367,7 @@ export const CreateCalendarModal = ({ visible, onClose,onSuccess, dutyId }) => {
                     value={selectedMonth ? dayjs(selectedMonth) : null}
                     onChange={(date, dateString) => onChangeDate(date, dateString)}
                 >
-                    <DatePicker onChange={onChangeDate} picker="month" style={{ width: "100%" }} />
+                    <DatePicker onChange={onChangeDate} picker="month" format="YYYY-MM" style={{ width: "100%" }} />
                 </Form.Item>
                 <Form.Item
                     name="dutyPeriod"

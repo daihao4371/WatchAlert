@@ -46,6 +46,9 @@ func InitBasic() {
 	// 定时任务，清理历史通知记录和历史拨测数据
 	go gcHistoryData(ctx)
 
+	// 定时任务，每年12月1日自动生成次年值班表
+	go autoGenerateNextYearDutySchedule(ctx)
+
 	// 加载静默规则
 	go pushMuteRuleToRedis()
 
@@ -116,7 +119,24 @@ func gcHistoryData(ctx *ctx.Context) {
 			logc.Info(ctx.Ctx, "success delete notice history record")
 		}
 	})
+}
 
+// autoGenerateNextYearDutySchedule 自动生成次年值班表
+// 定时任务：每年12月1日凌晨00:00触发
+func autoGenerateNextYearDutySchedule(ctx *ctx.Context) {
+	// Cron 表达式: 0 0 1 12 *
+	// 分 时 日 月 星期 (robfig/cron 格式)
+	tools.NewCronjob("0 0 1 12 *", func() {
+		logc.Info(ctx.Ctx, "定时任务触发: 开始自动生成次年值班表")
+
+		// 调用 DutyCalendarService 的自动生成方法
+		err := services.DutyCalendarService.AutoGenerateNextYearSchedule()
+		if err != nil {
+			logc.Errorf(ctx.Ctx, "自动生成次年值班表失败: %s", err.Error())
+		} else {
+			logc.Info(ctx.Ctx, "自动生成次年值班表任务完成")
+		}
+	})
 }
 
 func pushMuteRuleToRedis() {

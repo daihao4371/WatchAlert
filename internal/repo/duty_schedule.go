@@ -68,11 +68,7 @@ func (dc DutyCalendarRepo) GetDutyUserInfo(dutyId, time string) ([]models.Member
 }
 
 func (dc DutyCalendarRepo) Create(r models.DutySchedule) error {
-	err := dc.g.Create(models.DutySchedule{}, r)
-	if err != nil {
-		return err
-	}
-	return nil
+	return dc.g.Create(models.DutySchedule{}, r)
 }
 
 func (dc DutyCalendarRepo) Update(r models.DutySchedule) error {
@@ -86,11 +82,7 @@ func (dc DutyCalendarRepo) Update(r models.DutySchedule) error {
 		Updates: r,
 	}
 
-	err := dc.g.Updates(u)
-	if err != nil {
-		return err
-	}
-	return nil
+	return dc.g.Updates(u)
 }
 
 func (dc DutyCalendarRepo) Search(tenantId, dutyId, time string) ([]models.DutySchedule, error) {
@@ -107,22 +99,21 @@ func (dc DutyCalendarRepo) Search(tenantId, dutyId, time string) ([]models.DutyS
 }
 
 // GetCalendarUsers 获取值班用户
-// 只获取当前月份到月底正在值班的用户，避免已经移除过的用户仍存在值班用户列表当中；
+// 获取当前月份（从今天到月底）正在值班的所有用户组，避免已移除的用户仍存在列表中
 func (dc DutyCalendarRepo) GetCalendarUsers(tenantId, dutyId string) ([][]models.DutyUser, error) {
 	var (
 		entries      []models.DutySchedule
 		groupedUsers [][]models.DutyUser
 	)
 
-	// 获取当前年月日
+	// 计算查询时间范围：今天 -> 当月最后一天
 	now := time.Now().UTC()
 	currentDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-	// 计算当年12月31日
-	endOfYear := time.Date(now.Year(), 12, 31, 0, 0, 0, 0, time.UTC)
+	endOfMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, time.UTC)
 
 	db := dc.db.Model(&models.DutySchedule{})
 	db.Where("tenant_id = ? AND duty_id = ? AND status = ?", tenantId, dutyId, models.CalendarFormalStatus)
-	db.Where("time >= ? AND time <= ?", currentDate, endOfYear)
+	db.Where("time >= ? AND time <= ?", currentDate, endOfMonth)
 
 	if err := db.Find(&entries).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -131,6 +122,7 @@ func (dc DutyCalendarRepo) GetCalendarUsers(tenantId, dutyId string) ([][]models
 		return nil, fmt.Errorf("failed to get calendar users: %w", err)
 	}
 
+	// 使用 map 去重用户组，避免重复
 	user := make(map[string]struct{})
 	for _, entry := range entries {
 		key := tools.JsonMarshalToString(entry.Users)
