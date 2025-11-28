@@ -34,6 +34,7 @@ func newInterQuickActionService(ctx *ctx.Context) InterQuickActionService {
 
 // ClaimAlert 认领告警
 // 更新告警的认领状态，标记为已认领
+// 支持普通告警和拨测告警
 func (q *quickActionService) ClaimAlert(tenantId, fingerprint, username, clientIP string) error {
 	// 获取目标告警
 	targetAlert, err := q.GetAlertByFingerprint(tenantId, fingerprint)
@@ -52,7 +53,12 @@ func (q *quickActionService) ClaimAlert(tenantId, fingerprint, username, clientI
 	targetAlert.ConfirmState.ConfirmActionTime = time.Now().Unix()
 
 	// 推送更新后的告警到缓存
-	q.ctx.Redis.Alert().PushAlertEvent(targetAlert)
+	// 注意: 拨测告警没有FaultCenterId,所以这里只更新普通告警
+	if targetAlert.FaultCenterId != "" {
+		q.ctx.Redis.Alert().PushAlertEvent(targetAlert)
+	}
+	// 拨测告警的认领状态暂不持久化到ProbingCache
+	// 因为ProbingCache设计上不包含ConfirmState字段
 
 	// 记录审计日志
 	q.createAuditLog(tenantId, username, clientIP, "快捷操作-认领告警", map[string]interface{}{
@@ -73,6 +79,7 @@ func (q *quickActionService) SilenceAlert(tenantId, fingerprint, duration, usern
 
 // ResolveAlert 标记告警已处理
 // 手动标记告警为已恢复状态
+// 支持普通告警和拨测告警
 func (q *quickActionService) ResolveAlert(tenantId, fingerprint, username, clientIP string) error {
 	// 获取目标告警
 	targetAlert, err := q.GetAlertByFingerprint(tenantId, fingerprint)
@@ -90,7 +97,16 @@ func (q *quickActionService) ResolveAlert(tenantId, fingerprint, username, clien
 	targetAlert.RecoverTime = time.Now().Unix()
 
 	// 推送更新后的告警到缓存
-	q.ctx.Redis.Alert().PushAlertEvent(targetAlert)
+	// 对于普通告警,更新AlertCache
+	if targetAlert.FaultCenterId != "" {
+		q.ctx.Redis.Alert().PushAlertEvent(targetAlert)
+	} else {
+		// 对于拨测告警,需要更新ProbingCache
+		err := q.updateProbingEventRecovery(tenantId, targetAlert.RuleId, fingerprint)
+		if err != nil {
+			return fmt.Errorf("更新拨测告警恢复状态失败: %w", err)
+		}
+	}
 
 	// 记录审计日志
 	q.createAuditLog(tenantId, username, clientIP, "快捷操作-标记已处理", map[string]interface{}{
@@ -103,6 +119,33 @@ func (q *quickActionService) ResolveAlert(tenantId, fingerprint, username, clien
 	return nil
 }
 
+// updateProbingEventRecovery 更新拨测事件的恢复状态
+// 从缓存中读取拨测事件,更新恢复状态后写回
+func (q *quickActionService) updateProbingEventRecovery(tenantId, ruleId, fingerprint string) error {
+	cacheKey := models.BuildProbingEventCacheKey(tenantId, ruleId)
+
+	// 获取拨测事件
+	probingEvent, err := q.ctx.Redis.Probing().GetProbingEventCache(cacheKey)
+	if err != nil {
+		return err
+	}
+
+	// 验证指纹匹配
+	if probingEvent.Fingerprint != fingerprint {
+		return fmt.Errorf("指纹不匹配")
+	}
+
+	// 更新恢复状态
+	probingEvent.IsRecovered = true
+	probingEvent.RecoverTime = time.Now().Unix()
+	probingEvent.LastSendTime = 0 // 重置发送时间,触发恢复通知
+
+	// 写回缓存
+	q.ctx.Redis.Probing().SetProbingEventCache(*probingEvent, 0)
+
+	return nil
+}
+
 // SilenceAlertWithReason 静默告警(带原因)
 // 与SilenceAlert相比，此方法允许用户提供自定义的静默原因
 func (q *quickActionService) SilenceAlertWithReason(tenantId, fingerprint, duration, username, reason, clientIP string) error {
@@ -111,8 +154,9 @@ func (q *quickActionService) SilenceAlertWithReason(tenantId, fingerprint, durat
 
 // GetAlertByFingerprint 根据指纹获取告警
 // 从Redis缓存中查找指定租户下匹配指纹的告警事件
+// 支持查找普通告警(AlertCache)和拨测告警(ProbingCache)
 func (q *quickActionService) GetAlertByFingerprint(tenantId, fingerprint string) (*models.AlertCurEvent, error) {
-	// 获取租户下所有故障中心
+	// 1. 先在普通告警缓存(AlertCache)中查找
 	faultCenters, err := q.ctx.DB.FaultCenter().List(tenantId, "")
 	if err != nil {
 		return nil, fmt.Errorf("获取故障中心列表失败: %w", err)
@@ -120,7 +164,7 @@ func (q *quickActionService) GetAlertByFingerprint(tenantId, fingerprint string)
 
 	// 遍历所有故障中心，查找匹配的告警
 	for _, fc := range faultCenters {
-		// 从缓存中获取当前故障中心的告警事件
+		// 从AlertCache中获取当前故障中心的告警事件
 		events, err := q.ctx.Redis.Alert().GetAllEvents(models.BuildAlertEventCacheKey(tenantId, fc.ID))
 		if err != nil {
 			continue // 忽略错误，继续搜索下一个故障中心
@@ -134,7 +178,69 @@ func (q *quickActionService) GetAlertByFingerprint(tenantId, fingerprint string)
 		}
 	}
 
-	return nil, fmt.Errorf("未找到指纹为 %s 的告警", fingerprint)
+	// 2. 如果在普通告警中没找到，尝试从拨测告警缓存(ProbingCache)中查找
+	probingAlert, err := q.findProbingAlertByFingerprint(tenantId, fingerprint)
+	if err == nil && probingAlert != nil {
+		return probingAlert, nil
+	}
+
+	return nil, fmt.Errorf("未找到指纹为 %s 的告警 或者告警失效了", fingerprint)
+}
+
+// findProbingAlertByFingerprint 从拨测告警缓存中查找指定指纹的告警
+// 遍历所有拨测规则的缓存，找到匹配的拨测事件并转换为标准告警格式
+func (q *quickActionService) findProbingAlertByFingerprint(tenantId, fingerprint string) (*models.AlertCurEvent, error) {
+	// 获取租户下所有启用的拨测规则
+	var probingRules []models.ProbingRule
+	err := q.ctx.DB.DB().Where("tenant_id = ? AND enabled = ?", tenantId, true).Find(&probingRules).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// 遍历每个拨测规则，查找匹配的告警
+	for _, rule := range probingRules {
+		// 构建拨测事件缓存key
+		cacheKey := models.BuildProbingEventCacheKey(rule.TenantId, rule.RuleId)
+
+		// 从ProbingCache获取拨测事件
+		probingEvent, err := q.ctx.Redis.Probing().GetProbingEventCache(cacheKey)
+		if err != nil {
+			continue // 忽略错误，继续下一个规则
+		}
+
+		// 检查指纹是否匹配
+		if probingEvent.Fingerprint == fingerprint {
+			// 将ProbingEvent转换为AlertCurEvent
+			alertEvent := q.convertProbingEventToAlertEvent(probingEvent)
+			return &alertEvent, nil
+		}
+	}
+
+	return nil, fmt.Errorf("未在拨测告警中找到指纹: %s", fingerprint)
+}
+
+// convertProbingEventToAlertEvent 将拨测事件转换为标准告警事件
+// 确保拨测告警也能被快捷操作正确处理
+func (q *quickActionService) convertProbingEventToAlertEvent(probingEvent *models.ProbingEvent) models.AlertCurEvent {
+	return models.AlertCurEvent{
+		TenantId:               probingEvent.TenantId,
+		RuleName:               probingEvent.RuleName,
+		RuleId:                 probingEvent.RuleId,
+		Fingerprint:            probingEvent.Fingerprint,
+		Labels:                 probingEvent.Labels,
+		Annotations:            probingEvent.Annotations,
+		IsRecovered:            probingEvent.IsRecovered,
+		FirstTriggerTime:       probingEvent.FirstTriggerTime,
+		FirstTriggerTimeFormat: probingEvent.FirstTriggerTimeFormat,
+		RepeatNoticeInterval:   probingEvent.RepeatNoticeInterval,
+		LastEvalTime:           probingEvent.LastEvalTime,
+		LastSendTime:           probingEvent.LastSendTime,
+		RecoverTime:            probingEvent.RecoverTime,
+		RecoverTimeFormat:      probingEvent.RecoverTimeFormat,
+		DutyUser:               probingEvent.DutyUser,
+		// 注意: Probing告警没有FaultCenterId,ConfirmState等字段
+		// 这些字段保持默认值
+	}
 }
 
 // ------------------------ 私有辅助方法 ------------------------
