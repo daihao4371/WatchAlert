@@ -1,6 +1,6 @@
 "use client"
 
-import { Calendar, Button, message, Spin } from "antd"
+import { Calendar, Button, message, Spin, Select } from "antd"
 import React, { useState, useEffect, useCallback } from "react"
 import {CalendarIcon, Plus, Users} from "lucide-react"
 import { UpdateCalendarModal } from "./UpdateCalendar"
@@ -268,6 +268,55 @@ export const CalendarApp = ({ tenantId }) => {
         setCurrentMonth(month)
     }
 
+    // 自定义日历头部渲染，将月份显示为阿拉伯数字格式
+    const headerRender = ({ value, onChange }) => {
+        const year = value.year()
+        const month = value.month()
+
+        // 生成月份选项（阿拉伯数字格式：01-12）
+        const monthOptions = []
+        for (let i = 0; i < 12; i++) {
+            monthOptions.push({
+                label: String(i + 1).padStart(2, '0'),
+                value: i
+            })
+        }
+
+        // 生成年份选项（前后10年）
+        const yearOptions = []
+        const currentYear = new Date().getFullYear()
+        for (let i = currentYear - 10; i <= currentYear + 10; i++) {
+            yearOptions.push({
+                label: `${i}年`,
+                value: i
+            })
+        }
+
+        return (
+            <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <Select
+                    value={year}
+                    options={yearOptions}
+                    onChange={(newYear) => {
+                        const newValue = value.clone().year(newYear)
+                        onChange(newValue)
+                    }}
+                    style={{ width: 100 }}
+                />
+                <Select
+                    value={month}
+                    options={monthOptions}
+                    onChange={(newMonth) => {
+                        const newValue = value.clone().month(newMonth)
+                        onChange(newValue)
+                    }}
+                    style={{ width: 80 }}
+                />
+                <span style={{ lineHeight: '32px', marginLeft: '4px' }}>月</span>
+            </div>
+        )
+    }
+
     return (
         <div>
             <Spin spinning={loading} tip="加载中..." className="custom-spin">
@@ -311,6 +360,7 @@ export const CalendarApp = ({ tenantId }) => {
                     <Calendar
                         onPanelChange={handlePanelChange}
                         cellRender={dateCellRender}
+                        headerRender={headerRender}
                         fullscreen={false}
                     />
                 </div>
