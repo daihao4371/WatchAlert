@@ -333,7 +333,7 @@ export const AlertCurrentEvent = (props) => {
                         {(text === "alerting" && record.confirmState?.confirmUsername) && (
                             <Tag style={{ color:"#980d9e", background:"#f6edff", borderColor: "rgb(204 121 208)" }}>处理中</Tag>
                         ) || (text === "silenced" && record.silenceInfo) ? (
-                            <Tooltip title={record.silenceInfo.comment || "静默中"}>
+                            <Tooltip title={record.silenceInfo?.comment || "静默中"}>
                                 <Tag color={status.color}>
                                     {status.text} {formatSilenceTime(record.silenceInfo.remainingTime)}
                                 </Tag>
