@@ -26,8 +26,8 @@ func (q quickActionController) API(gin *gin.RouterGroup) {
 	alert := gin.Group("alert")
 
 	// 登录相关路由（无需中间件）
-	alert.GET("quick-login", q.QuickLogin)     // 显示登录页面
-	alert.POST("quick-login", q.DoQuickLogin)  // 处理登录请求
+	alert.GET("quick-login", q.QuickLogin)    // 显示登录页面
+	alert.POST("quick-login", q.DoQuickLogin) // 处理登录请求
 
 	// 快捷操作路由（需要登录验证）
 	authGroup := alert.Group("")
@@ -37,9 +37,9 @@ func (q quickActionController) API(gin *gin.RouterGroup) {
 		middleware.ParseTenant(),
 	)
 	{
-		authGroup.GET("quick-action", q.QuickAction)         // 快捷操作
-		authGroup.GET("quick-silence", q.QuickSilenceForm)   // 自定义静默表单
-		authGroup.POST("quick-silence", q.QuickSilence)      // 提交自定义静默
+		authGroup.GET("quick-action", q.QuickAction)       // 快捷操作
+		authGroup.GET("quick-silence", q.QuickSilenceForm) // 自定义静默表单
+		authGroup.POST("quick-silence", q.QuickSilence)    // 提交自定义静默
 	}
 }
 
@@ -476,7 +476,10 @@ func (q quickActionController) QuickSilenceForm(ctx *gin.Context) {
         <h2>🔕 自定义静默</h2>
         <div class="alert-name">告警: %s</div>
 
-        <form id="silenceForm">
+        <form id="silenceForm" action="/api/v1/alert/quick-silence" method="POST">
+            <input type="hidden" name="fingerprint" value="%s">
+            <input type="hidden" name="token" value="%s">
+
             <div class="form-group">
                 <label>静默时长 <span class="required">*</span></label>
                 <select name="duration" required>
@@ -506,45 +509,21 @@ func (q quickActionController) QuickSilenceForm(ctx *gin.Context) {
         const form = document.getElementById('silenceForm');
         const submitBtn = document.getElementById('submitBtn');
 
-        form.onsubmit = async (e) => {
-            e.preventDefault();
-
-            const formData = new FormData(e.target);
-            const duration = formData.get('duration');
-            const reason = formData.get('reason');
+        form.onsubmit = function(e) {
+            const reason = document.querySelector('textarea[name="reason"]').value;
 
             if (!reason.trim()) {
+                e.preventDefault();
                 alert('请填写静默原因');
-                return;
+                return false;
             }
 
-            // 禁用提交按钮
+            // 禁用提交按钮,防止重复提交
             submitBtn.disabled = true;
             submitBtn.textContent = '提交中...';
 
-            try {
-                const response = await fetch('/api/v1/alert/quick-silence', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: 'fingerprint=%s&token=%s&duration=' + duration + '&reason=' + encodeURIComponent(reason)
-                });
-
-                if (response.ok) {
-                    document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;min-height:100vh;"><div style="text-align:center;background:white;padding:40px;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,0.15);"><div style="font-size:64px;margin-bottom:20px;">✅</div><h1 style="color:#52c41a;margin:0 0 15px 0;font-size:24px;">静默成功</h1><p style="color:#666;font-size:14px;">您可以关闭此页面</p></div></div>';
-                    setTimeout(() => window.close(), 2000);
-                } else {
-                    const text = await response.text();
-                    alert('静默失败: ' + text);
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = '确认静默';
-                }
-            } catch (error) {
-                alert('请求失败: ' + error.message);
-                submitBtn.disabled = false;
-                submitBtn.textContent = '确认静默';
-            }
+            // 允许表单正常提交(传统POST方式,会导航到新页面)
+            return true;
         };
     </script>
 </body>

@@ -398,24 +398,28 @@ func (q *quickActionService) getWebhookFromAlert(alert *models.AlertCurEvent) (s
 		return q.getWebhookFromProbingRule(alert)
 	}
 
-	// 2. 遍历故障中心的通知对象ID，查找飞书通知
+	// 2. 遍历故障中心的通知对象ID，查找支持的通知类型(飞书或钉钉)
 	for _, noticeId := range faultCenter.NoticeIds {
 		noticeObj, err := q.ctx.DB.Notice().Get(alert.TenantId, noticeId)
 		if err != nil {
 			continue // 跳过获取失败的通知对象
 		}
 
-		// 检查是否为飞书通知
+		// 检查是否为飞书或钉钉通知
 		if noticeObj.NoticeType == "FeiShu" {
-			// 返回Webhook配置（DefaultHook优先，如果为空则查找Routes）
 			hook, sign := q.extractWebhookFromNotice(&noticeObj, alert)
 			if hook != "" {
 				return hook, sign, "feishu", nil
 			}
+		} else if noticeObj.NoticeType == "DingDing" {
+			hook, sign := q.extractWebhookFromNotice(&noticeObj, alert)
+			if hook != "" {
+				return hook, sign, "dingtalk", nil
+			}
 		}
 	}
 
-	return "", "", "", fmt.Errorf("未找到飞书通知配置")
+	return "", "", "", fmt.Errorf("未找到飞书或钉钉通知配置")
 }
 
 // getWebhookFromProbingRule 从拨测规则中获取Webhook配置
@@ -436,18 +440,23 @@ func (q *quickActionService) getWebhookFromProbingRule(alert *models.AlertCurEve
 		return "", "", "", fmt.Errorf("获取通知对象失败: %w", err)
 	}
 
-	// 检查是否为飞书通知
-	if noticeObj.NoticeType != "FeiShu" {
-		return "", "", "", fmt.Errorf("不是飞书通知类型")
-	}
-
 	// 提取Webhook配置
 	hook, sign := q.extractWebhookFromNotice(&noticeObj, alert)
 	if hook == "" {
 		return "", "", "", fmt.Errorf("未找到有效的Webhook配置")
 	}
 
-	return hook, sign, "feishu", nil
+	// 根据通知类型返回对应的noticeType
+	var noticeType string
+	if noticeObj.NoticeType == "FeiShu" {
+		noticeType = "feishu"
+	} else if noticeObj.NoticeType == "DingDing" {
+		noticeType = "dingtalk"
+	} else {
+		return "", "", "", fmt.Errorf("不支持的通知类型: %s", noticeObj.NoticeType)
+	}
+
+	return hook, sign, noticeType, nil
 }
 
 // extractWebhookFromNotice 从通知对象中提取Webhook配置
@@ -473,11 +482,75 @@ func (q *quickActionService) extractWebhookFromNotice(notice *models.AlertNotice
 	return "", ""
 }
 
-// buildConfirmationMessage 构建确认消息内容（飞书卡片格式）
+// buildDingTalkConfirmationMessage 构建钉钉确认消息（Markdown格式）
+// 用于告知群成员快捷操作的执行结果
+// 使用 Markdown 格式,提供更美观的卡片样式展示
+func (q *quickActionService) buildDingTalkConfirmationMessage(
+	alert *models.AlertCurEvent,
+	actionType, username string,
+	duration ...string, // 可选参数，用于静默时传递时长
+) string {
+	// 根据操作类型生成操作描述、图标和标题
+	var actionDesc, actionIcon, title string
+	switch actionType {
+	case "claim":
+		actionDesc = "认领"
+		actionIcon = "🔔"
+		title = "告警快捷操作通知"
+	case "silence":
+		// 如果提供了duration参数,显示具体静默时长
+		if len(duration) > 0 && duration[0] != "" {
+			actionDesc = fmt.Sprintf("静默 %s", q.formatDurationChinese(duration[0]))
+		} else {
+			actionDesc = "静默"
+		}
+		actionIcon = "🔕"
+		title = "告警快捷操作通知"
+	case "resolve":
+		actionDesc = "标记已处理"
+		actionIcon = "✅"
+		title = "告警快捷操作通知"
+	default:
+		actionDesc = actionType
+		actionIcon = "ℹ️"
+		title = "告警快捷操作通知"
+	}
+
+	// 构建 Markdown 格式的消息内容
+	// 参考钉钉官方文档的 Markdown 语法
+	markdownText := fmt.Sprintf(
+		"#### %s %s\n\n"+
+			"**📋 告警名称**: %s\n\n"+
+			"**🎯 操作类型**: %s\n\n"+
+			"**👤 操作人**: %s\n\n"+
+			"**⏰ 操作时间**: %s\n\n"+
+			"---\n\n"+
+			"💡 此消息由 WatchAlert 告警系统自动发送，原告警按钮已失效",
+		actionIcon,
+		title,
+		alert.RuleName,
+		actionDesc,
+		username,
+		time.Now().Format("2006-01-02 15:04:05"),
+	)
+
+	// 构建钉钉 Markdown 消息格式
+	msg := map[string]interface{}{
+		"msgtype": "markdown",
+		"markdown": map[string]interface{}{
+			"title": fmt.Sprintf("%s %s", actionIcon, title),
+			"text":  markdownText,
+		},
+	}
+
+	return tools.JsonMarshalToString(msg)
+}
+
+// buildFeishuConfirmationMessage 构建飞书确认消息（交互式卡片格式）
 // 用于告知群成员快捷操作的执行结果
 // 注意: 确认消息不包含操作按钮,避免用户重复操作
 // duration是可选参数,用于静默操作时显示具体时长
-func (q *quickActionService) buildConfirmationMessage(
+func (q *quickActionService) buildFeishuConfirmationMessage(
 	alert *models.AlertCurEvent,
 	actionType, username string,
 	duration ...string, // 可选参数，用于静默时传递时长
@@ -590,6 +663,7 @@ func (q *quickActionService) buildConfirmationMessage(
 
 // sendConfirmationMessage 发送确认消息到群聊
 // 操作成功后自动发送一条新消息，告知群成员操作结果
+// 支持飞书和钉钉两种通知类型
 // duration参数是可选的，仅在静默操作时需要传递
 func (q *quickActionService) sendConfirmationMessage(
 	alert *models.AlertCurEvent,
@@ -602,28 +676,38 @@ func (q *quickActionService) sendConfirmationMessage(
 		return fmt.Errorf("无法发送确认消息: %w", err)
 	}
 
-	// 目前仅支持飞书
-	if noticeType != "feishu" {
+	// 2. 根据通知类型构建不同的消息内容
+	var message string
+	switch noticeType {
+	case "feishu":
+		message = q.buildFeishuConfirmationMessage(alert, actionType, username, duration...)
+	case "dingtalk":
+		message = q.buildDingTalkConfirmationMessage(alert, actionType, username, duration...)
+	default:
 		return fmt.Errorf("不支持的通知类型: %s", noticeType)
 	}
 
-	// 2. 构建确认消息内容(传递duration参数)
-	message := q.buildConfirmationMessage(alert, actionType, username, duration...)
+	// 3. 发送消息
+	return q.sendMessage(hook, sign, noticeType, message)
+}
 
-	// 3. 解析消息为map结构
-	msg := make(map[string]interface{})
-	if err := json.Unmarshal([]byte(message), &msg); err != nil {
-		return fmt.Errorf("消息解析失败: %w", err)
-	}
-
-	// 4. 调用飞书发送器发送消息
-	feishuSender := sender.NewFeiShuSender()
+// sendMessage 发送消息到飞书或钉钉(通用方法，避免代码重复)
+// 根据通知类型选择对应的发送器
+func (q *quickActionService) sendMessage(hook, sign, noticeType, message string) error {
 	params := sender.SendParams{
 		Hook:    hook,
 		Sign:    sign,
 		Content: message,
 	}
-	return feishuSender.Send(params)
+
+	switch noticeType {
+	case "feishu":
+		return sender.NewFeiShuSender().Send(params)
+	case "dingtalk":
+		return sender.NewDingSender().Send(params)
+	default:
+		return fmt.Errorf("不支持的通知类型: %s", noticeType)
+	}
 }
 
 // findActiveSilenceByFingerprint 查找指定指纹的激活静默规则
