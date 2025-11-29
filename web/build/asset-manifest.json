@@ -1,0 +1,32 @@
+{
+  "files": {
+    "main.css": "/static/css/main.6c6d407c.css",
+    "main.js": "/static/js/main.9629b43d.js",
+    "static/media/feishu.svg": "/static/media/feishu.ea5f3eb7ec2bc7337a19fb7962d4da58.svg",
+    "static/media/victoriametrics.svg": "/static/media/victoriametrics.654ef579b7068bf1dd0c749db56a35ec.svg",
+    "static/media/victorialogs.svg": "/static/media/victorialogs.b418ae82fbeba8117ec4cc5e5e034540.svg",
+    "static/media/logo.svg": "/static/media/logo.09ebe2a3e9c6912f74f326514bb7328a.svg",
+    "static/media/L.svg": "/static/media/L.f3203134e028a66a323b8d10b37c0d90.svg",
+    "static/media/jaeger.svg": "/static/media/jaeger.fd2d251ddcc4b1c1781d112dda4b782d.svg",
+    "static/media/Kubernetes.svg": "/static/media/Kubernetes.6509d9c14e5e9f9fce456e86d2ec9c36.svg",
+    "static/media/AWSlogo.svg": "/static/media/AWSlogo.4a699a89406cb50a380335a0d5acbae2.svg",
+    "static/media/qywechat.svg": "/static/media/qywechat.0ef5ca263ee2ed8b3c12ff77a960993c.svg",
+    "static/media/customhook.svg": "/static/media/customhook.0d1ce9b9b34d16637f6f5bbda5b12bd3.svg",
+    "static/media/trace.svg": "/static/media/trace.d111617c16a460465aaf3e1d6c244dfb.svg",
+    "static/media/slack.svg": "/static/media/slack.5b3ecdccbd15f278073e39c9d6459105.svg",
+    "static/media/ElasticSearch.svg": "/static/media/ElasticSearch.d228b68a28aecd4d64a4d4c0c70f40ad.svg",
+    "static/media/Email.svg": "/static/media/Email.87c612b1e4390e6ba1a13de18baad163.svg",
+    "static/media/metric.svg": "/static/media/metric.0d4f6ffdfda95aaba81f73ea74f3ca90.svg",
+    "static/media/dingding.svg": "/static/media/dingding.07cf25e2fd6a232f7a29dde69317fdba.svg",
+    "static/media/Prometheus.svg": "/static/media/Prometheus.defb7d534fb74535f7410f1a08d1b131.svg",
+    "static/media/alicloud.svg": "/static/media/alicloud.622bf8af8317a4ac9dfa850b5d55b5c8.svg",
+    "static/media/log.svg": "/static/media/log.0c09d65cb17e7372522dd5ecc4de9740.svg",
+    "static/media/event.svg": "/static/media/event.58059d50de1edfc36476187b5f84bffd.svg",
+    "index.html": "/index.html",
+    "static/media/clickhouse.svg": "/static/media/clickhouse.087c0704c086b31da7f06bfd39bb788e.svg"
+  },
+  "entrypoints": [
+    "static/css/main.6c6d407c.css",
+    "static/js/main.9629b43d.js"
+  ]
+}

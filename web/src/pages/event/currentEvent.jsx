@@ -307,16 +307,40 @@ export const AlertCurrentEvent = (props) => {
             title: "告警状态",
             dataIndex: "status",
             key: "status",
-            width: "100px",
+            width: "140px",
             render: (text, record) => {
                 const status = statusMap[text]
+
+                // 格式化静默剩余时间
+                const formatSilenceTime = (remainingSeconds) => {
+                    if (!remainingSeconds || remainingSeconds <= 0) return ""
+
+                    const days = Math.floor(remainingSeconds / 86400)
+                    const hours = Math.floor((remainingSeconds % 86400) / 3600)
+                    const minutes = Math.floor((remainingSeconds % 3600) / 60)
+
+                    if (days > 0) {
+                        return `(剩余 ${days}天${hours}小时)`
+                    } else if (hours > 0) {
+                        return `(剩余 ${hours}小时${minutes}分)`
+                    } else {
+                        return `(剩余 ${minutes}分钟)`
+                    }
+                }
+
                 return (
                     <div>
                         {(text === "alerting" && record.confirmState?.confirmUsername) && (
                             <Tag style={{ color:"#980d9e", background:"#f6edff", borderColor: "rgb(204 121 208)" }}>处理中</Tag>
-                        ) || 
+                        ) || (text === "silenced" && record.silenceInfo) ? (
+                            <Tooltip title={record.silenceInfo.comment || "静默中"}>
+                                <Tag color={status.color}>
+                                    {status.text} {formatSilenceTime(record.silenceInfo.remainingTime)}
+                                </Tag>
+                            </Tooltip>
+                        ) : (
                             <Tag color={status.color}>{status.text}</Tag>
-                        }
+                        )}
                     </div>
                 )
             },

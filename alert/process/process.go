@@ -59,8 +59,24 @@ func PushEventToFaultCenter(ctx *ctx.Context, event *models.AlertCurEvent) {
 		event.Status = currentStatus
 	}
 
-	// 检查是否处于静默状态
-	isSilenced := IsSilencedEvent(event)
+	// 检查是否处于静默状态，并获取匹配的静默规则
+	matchedSilence := GetMatchedSilenceRule(event)
+	isSilenced := matchedSilence != nil
+
+	// 如果匹配到静默规则，设置静默信息
+	if isSilenced {
+		now := time.Now().Unix()
+		event.SilenceInfo = &models.SilenceInfo{
+			SilenceId:     matchedSilence.ID,
+			StartsAt:      matchedSilence.StartsAt,
+			EndsAt:        matchedSilence.EndsAt,
+			RemainingTime: matchedSilence.EndsAt - now,
+			Comment:       matchedSilence.Comment,
+		}
+	} else {
+		// 清除静默信息
+		event.SilenceInfo = nil
+	}
 
 	// 根据不同情况处理状态转换
 	switch event.Status {
@@ -97,6 +113,18 @@ func PushEventToFaultCenter(ctx *ctx.Context, event *models.AlertCurEvent) {
 // IsSilencedEvent 静默检查
 func IsSilencedEvent(event *models.AlertCurEvent) bool {
 	return mute.IsSilence(mute.MuteParams{
+		EffectiveTime: event.EffectiveTime,
+		IsRecovered:   event.IsRecovered,
+		TenantId:      event.TenantId,
+		Labels:        event.Labels,
+		FaultCenterId: event.FaultCenterId,
+	})
+}
+
+// GetMatchedSilenceRule 获取匹配的静默规则
+// 返回匹配的静默规则详情，如果没有匹配则返回nil
+func GetMatchedSilenceRule(event *models.AlertCurEvent) *models.AlertSilences {
+	return mute.GetMatchedSilenceRule(mute.MuteParams{
 		EffectiveTime: event.EffectiveTime,
 		IsRecovered:   event.IsRecovered,
 		TenantId:      event.TenantId,

@@ -60,12 +60,18 @@ func RecoverNotify(mp MuteParams) bool {
 
 // IsSilence 判断是否静默
 func IsSilence(mute MuteParams) bool {
+	return GetMatchedSilenceRule(mute) != nil
+}
+
+// GetMatchedSilenceRule 获取匹配的静默规则（如果有）
+// 返回匹配的静默规则详情，如果没有匹配则返回nil
+func GetMatchedSilenceRule(mute MuteParams) *models.AlertSilences {
 	silenceCtx := ctx.Redis.Silence()
 	// 获取静默列表中所有的id
 	ids, err := silenceCtx.GetAlertMutes(mute.TenantId, mute.FaultCenterId)
 	if err != nil {
 		logc.Errorf(ctx.Ctx, err.Error())
-		return false
+		return nil
 	}
 
 	// 根据ID获取到详细的静默规则
@@ -73,7 +79,7 @@ func IsSilence(mute MuteParams) bool {
 		muteRule, err := silenceCtx.WithIdGetMuteFromCache(mute.TenantId, mute.FaultCenterId, id)
 		if err != nil {
 			logc.Errorf(ctx.Ctx, err.Error())
-			return false
+			continue
 		}
 
 		if muteRule.Status != 1 {
@@ -81,11 +87,11 @@ func IsSilence(mute MuteParams) bool {
 		}
 
 		if evalCondition(mute.Labels, muteRule.Labels) {
-			return true
+			return muteRule
 		}
 	}
 
-	return false
+	return nil
 }
 
 func evalCondition(metrics map[string]interface{}, muteLabels []models.SilenceLabel) bool {

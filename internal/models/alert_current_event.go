@@ -47,7 +47,17 @@ type AlertCurEvent struct {
 	FaultCenterId          string                 `json:"faultCenterId"`
 	FaultCenter            FaultCenter            `json:"faultCenter" gorm:"-"`
 	ConfirmState           ConfirmState           `json:"confirmState" gorm:"-"`
-	Status                 AlertStatus            `json:"status" gorm:"-"` // 事件状态
+	Status                 AlertStatus            `json:"status" gorm:"-"`      // 事件状态
+	SilenceInfo            *SilenceInfo           `json:"silenceInfo" gorm:"-"` // 静默信息
+}
+
+// SilenceInfo 静默信息
+type SilenceInfo struct {
+	SilenceId     string `json:"silenceId"`     // 静默规则ID
+	StartsAt      int64  `json:"startsAt"`      // 静默开始时间(Unix时间戳)
+	EndsAt        int64  `json:"endsAt"`        // 静默结束时间(Unix时间戳)
+	RemainingTime int64  `json:"remainingTime"` // 剩余静默时间(秒)
+	Comment       string `json:"comment"`       // 静默原因
 }
 
 type ConfirmState struct {
