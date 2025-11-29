@@ -24,6 +24,9 @@ type (
 	FeiShuResponse struct {
 		Code int    `json:"code"`
 		Msg  string `json:"msg"`
+		Data struct {
+			MessageId string `json:"message_id"` // 飞书返回的消息ID
+		} `json:"data"`
 	}
 )
 

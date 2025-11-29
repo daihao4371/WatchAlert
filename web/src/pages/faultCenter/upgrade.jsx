@@ -54,12 +54,14 @@ export const AlarmUpgrade = () => {
 
                 setIsUpgradeEnabled(isUpgradeEnabled)
                 setUpgradableSeverity(upgradableSeverity)
-                // Set form values
-                form.setFieldsValue({
-                    claimTimeout: upgradeStrategy.timeout,
-                    claimRepeatInterval: upgradeStrategy.repeatInterval,
-                    claimNoticeId: upgradeStrategy.noticeId,
-                })
+                // Set form values - 添加空值检查,防止upgradeStrategy为null时出错
+                if (upgradeStrategy) {
+                    form.setFieldsValue({
+                        claimTimeout: upgradeStrategy.timeout,
+                        claimRepeatInterval: upgradeStrategy.repeatInterval,
+                        claimNoticeId: upgradeStrategy.noticeId,
+                    })
+                }
             }
         } catch (error) {
             console.error("Failed to fetch alarm upgrade config:", error)
