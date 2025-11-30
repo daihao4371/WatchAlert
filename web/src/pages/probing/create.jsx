@@ -16,6 +16,7 @@ import {
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons"
 import { useParams, useNavigate } from "react-router-dom"
 import { getNoticeList } from "../../api/notice"
+import { FaultCenterList } from "../../api/faultCenter"
 import { ProbingCreate, ProbingSearch, ProbingUpdate } from "../../api/probing"
 import TextArea from "antd/es/input/TextArea"
 import {HandleApiError} from "../../utils/lib";
@@ -50,6 +51,7 @@ export const CreateProbingRule = ({ type }) => {
     const [enabled, setEnabled] = useState(true)
     const [recoverNotify, setRecoverNotify] = useState(true)
     const [noticeOptions, setNoticeOptions] = useState([])
+    const [faultCenterOptions, setFaultCenterOptions] = useState([])
     const [loading, setLoading] = useState(true)
     const [protocolType, setProtocolType] = useState(searchParams.get('type'))
     const [methodType, setMethodType] = useState("GET")
@@ -164,6 +166,7 @@ export const CreateProbingRule = ({ type }) => {
             setLoading(false)
         }
         handleGetNoticeData()
+        handleGetFaultCenterData()
     }, [id, type, form]) // Added form to dependencies
 
     useEffect(() => {
@@ -214,6 +217,8 @@ export const CreateProbingRule = ({ type }) => {
                 annotations: selectedRow.annotations,
                 recoverNotify: selectedRow.recoverNotify,
                 enabled: selectedRow.enabled,
+                faultCenterId: selectedRow.faultCenterId || "",
+                severity: selectedRow.severity || "P1",
             })
         }
     }
@@ -304,6 +309,19 @@ export const CreateProbingRule = ({ type }) => {
                 value: item.uuid,
             }))
             setNoticeOptions(newData)
+        } catch (error) {
+            HandleApiError(error)
+        }
+    }
+
+    const handleGetFaultCenterData = async () => {
+        try {
+            const res = await FaultCenterList()
+            const newData = res.data.map((item) => ({
+                label: item.name,
+                value: item.id,
+            }))
+            setFaultCenterOptions(newData)
         } catch (error) {
             HandleApiError(error)
         }
@@ -646,6 +664,33 @@ export const CreateProbingRule = ({ type }) => {
                             rows={2}
                             placeholder="输入告警事件的详细消息内容，如：站点: ${address}，请求不可达请紧急排查!"
                             maxLength={10000}
+                        />
+                    </MyFormItem>
+                </div>
+                <div style={{display: "flex", gap: "10px"}}>
+                    <MyFormItem
+                        name="faultCenterId"
+                        label="故障中心"
+                        tooltip="接入故障中心后，告警将由故障中心统一管理"
+                        style={{width: "50%"}}
+                    >
+                        <Select style={{width: "100%"}} allowClear placeholder="选择故障中心（可选）" options={faultCenterOptions}/>
+                    </MyFormItem>
+                    <MyFormItem
+                        name="severity"
+                        label="告警级别"
+                        tooltip="P0(最高) / P1(中等) / P2(最低)"
+                        style={{width: "50%"}}
+                        initialValue="P1"
+                    >
+                        <Select
+                            style={{width: "100%"}}
+                            placeholder="选择告警级别"
+                            options={[
+                                {value: "P0", label: "P0 - 最高优先级"},
+                                {value: "P1", label: "P1 - 中等优先级"},
+                                {value: "P2", label: "P2 - 最低优先级"},
+                            ]}
                         />
                     </MyFormItem>
                 </div>

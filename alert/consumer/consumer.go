@@ -271,6 +271,11 @@ func (c *Consume) isMutedEvent(event *models.AlertCurEvent, faultCenter models.F
 
 // validateEvent 事件验证
 func (c *Consume) validateEvent(event *models.AlertCurEvent, faultCenter models.FaultCenter) bool {
+	// 已认领的告警不再重复发送通知
+	if event.ConfirmState.IsOk {
+		return false
+	}
+
 	return event.IsRecovered || event.LastSendTime == 0 ||
 		event.LastEvalTime >= event.LastSendTime+faultCenter.RepeatNoticeInterval*60
 }

@@ -13,6 +13,8 @@ type RequestProbingRuleCreate struct {
 	NoticeId              string                       `json:"noticeId"`
 	Annotations           string                       `json:"annotations"`
 	RecoverNotify         *bool                        `json:"recoverNotify"`
+	Severity              string                       `json:"severity"` // 告警级别
+	FaultCenterId         string                       `json:"faultCenterId"` // 故障中心ID
 	UpdateAt              int64                        `json:"updateAt"`
 	UpdateBy              string                       `json:"updateBy"`
 	Enabled               *bool                        `json:"enabled" `
@@ -38,6 +40,8 @@ type RequestProbingRuleUpdate struct {
 	NoticeId              string                       `json:"noticeId"`
 	Annotations           string                       `json:"annotations"`
 	RecoverNotify         *bool                        `json:"recoverNotify"`
+	Severity              string                       `json:"severity"` // 告警级别
+	FaultCenterId         string                       `json:"faultCenterId"` // 故障中心ID
 	UpdateAt              int64                        `json:"updateAt"`
 	UpdateBy              string                       `json:"updateBy"`
 	Enabled               *bool                        `json:"enabled" `

@@ -124,7 +124,42 @@ func (t *ProductProbing) worker(rule models.ProbingRule) {
 		return
 	}
 
-	t.Evaluation(event, option)
+	// 判断是否接入故障中心
+	if rule.FaultCenterId != "" {
+		// 转换为告警事件并推送到故障中心
+		alertEvent := ConvertProbingEventToAlertEvent(event, rule)
+
+		// 评估条件，决定是否触发告警或恢复
+		if process.EvalCondition(option) {
+			// 控制失败频次
+			t.setFrequency(t.FailFrequency, event.RuleId)
+			// 达到失败次数后推送告警事件
+			if t.getFrequency(t.FailFrequency, event.RuleId) >= event.ProbingEndpointConfig.Strategy.Failure {
+				defer func() {
+					t.cleanFrequency(t.FailFrequency, event.RuleId)
+					t.cleanFrequency(t.OkFrequency, event.RuleId)
+				}()
+				alertEvent.IsRecovered = false
+				process.PushEventToFaultCenter(t.ctx, alertEvent)
+			}
+		} else {
+			// 控制成功频次
+			t.setFrequency(t.OkFrequency, event.RuleId)
+			if t.getFrequency(t.OkFrequency, event.RuleId) >= 3 {
+				defer func() {
+					t.cleanFrequency(t.FailFrequency, event.RuleId)
+					t.cleanFrequency(t.OkFrequency, event.RuleId)
+				}()
+				// 标记为已恢复
+				alertEvent.IsRecovered = true
+				alertEvent.RecoverTime = time.Now().Unix()
+				process.PushEventToFaultCenter(t.ctx, alertEvent)
+			}
+		}
+	} else {
+		// 未配置故障中心，使用原有逻辑
+		t.Evaluation(event, option)
+	}
 }
 
 func (t *ProductProbing) runProbing(rule models.ProbingRule) (provider.EndpointValue, error) {

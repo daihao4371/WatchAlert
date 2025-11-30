@@ -13,6 +13,8 @@ type ProbingRule struct {
 	NoticeId              string                `json:"noticeId"`
 	Annotations           string                `json:"annotations"`
 	RecoverNotify         *bool                 `json:"recoverNotify"`
+	Severity              string                `json:"severity" gorm:"default:P1"` // 告警级别: P0/P1/P2
+	FaultCenterId         string                `json:"faultCenterId" gorm:"column:fault_center_id;default:''"` // 故障中心ID
 	UpdateAt              int64                 `json:"updateAt"`
 	UpdateBy              string                `json:"updateBy"`
 	Enabled               *bool                 `json:"enabled" gorm:"enabled"`

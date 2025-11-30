@@ -330,12 +330,22 @@ export const AlertCurrentEvent = (props) => {
 
                 return (
                     <div>
-                        {(text === "alerting" && record.confirmState?.confirmUsername) && (
-                            <Tag style={{ color:"#980d9e", background:"#f6edff", borderColor: "rgb(204 121 208)" }}>处理中</Tag>
-                        ) || (text === "silenced" && record.silenceInfo) ? (
+                        {(text === "alerting" && record.confirmState?.confirmUsername) ? (
+                            <Tag style={{
+                                background:"linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+                                border: "none",
+                                fontWeight: "500",
+                                boxShadow: "0 2px 8px rgba(59, 130, 246, 0.3)",
+                                padding: "2px 12px",
+                                fontSize: "12px",
+                                color: "#fff"
+                            }}>
+                                处理中
+                            </Tag>
+                        ) : (text === "silenced" && record.silenceInfo?.remainingTime) ? (
                             <Tooltip title={record.silenceInfo?.comment || "静默中"}>
                                 <Tag color={status.color}>
-                                    {status.text} {formatSilenceTime(record.silenceInfo.remainingTime)}
+                                    {status.text} {formatSilenceTime(record.silenceInfo?.remainingTime)}
                                 </Tag>
                             </Tooltip>
                         ) : (
@@ -463,6 +473,8 @@ export const AlertCurrentEvent = (props) => {
 
     const handleSilenceModalClose = () => {
         setSilenceVisible(false);
+        // 静默操作完成后刷新列表
+        handleCurrentEventList(currentPagination.pageIndex, currentPagination.pageSize);
     };
 
     const showDrawer = (record) => {
@@ -912,6 +924,11 @@ export const AlertCurrentEvent = (props) => {
 
     // 获取图表数据
     const fetchMetricData = async () => {
+        // 拨测类型的告警没有查询语句,跳过图表数据获取
+        if (selectedEvent.datasource_id === "probing") {
+            return;
+        }
+
         try {
             const parmas = {
                 datasourceIds: selectedEvent.datasource_id,
@@ -1292,8 +1309,18 @@ export const AlertCurrentEvent = (props) => {
                                     children: (
                                         <>
                                             {(selectedEvent.status === "alerting" && selectedEvent.confirmState?.confirmUsername) && (
-                                                <Tag style={{ color:"#980d9e", background:"#f6edff", borderColor: "rgb(204 121 208)" }}>处理中</Tag>
-                                            ) || 
+                                                <Tag style={{
+                                                    background:"linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+                                                    border: "none",
+                                                    fontWeight: "500",
+                                                    boxShadow: "0 2px 8px rgba(59, 130, 246, 0.3)",
+                                                    padding: "2px 12px",
+                                                    fontSize: "12px",
+                                                    color: "#fff"
+                                                }}>
+                                                    处理中
+                                                </Tag>
+                                            ) ||
                                                 <Tag color={statusMap[selectedEvent.status].color}>{statusMap[selectedEvent.status].text}</Tag>
                                             }
                                         </>

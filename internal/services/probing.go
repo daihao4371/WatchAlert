@@ -1,6 +1,8 @@
 package services
 
 import (
+	"fmt"
+	"time"
 	"watchAlert/alert"
 	"watchAlert/alert/probing"
 	"watchAlert/internal/ctx"
@@ -9,8 +11,6 @@ import (
 	"watchAlert/pkg/client"
 	"watchAlert/pkg/provider"
 	"watchAlert/pkg/tools"
-
-	"time"
 )
 
 type (
@@ -38,6 +38,15 @@ func newInterProbingService(ctx *ctx.Context) InterProbingService {
 
 func (m probingService) Create(req interface{}) (interface{}, interface{}) {
 	r := req.(*types.RequestProbingRuleCreate)
+
+	// 验证故障中心是否存在
+	if r.FaultCenterId != "" {
+		_, err := m.ctx.DB.FaultCenter().Get(r.TenantId, r.FaultCenterId, "")
+		if err != nil {
+			return nil, fmt.Errorf("故障中心不存在或已删除")
+		}
+	}
+
 	data := models.ProbingRule{
 		TenantId:              r.TenantId,
 		RuleName:              r.RuleName,
@@ -49,6 +58,8 @@ func (m probingService) Create(req interface{}) (interface{}, interface{}) {
 		NoticeId:              r.NoticeId,
 		Annotations:           r.Annotations,
 		RecoverNotify:         r.RecoverNotify,
+		Severity:              r.Severity,
+		FaultCenterId:         r.FaultCenterId,
 		UpdateAt:              time.Now().Unix(),
 		UpdateBy:              r.UpdateBy,
 		Enabled:               r.Enabled,
@@ -81,6 +92,15 @@ func (m probingService) Create(req interface{}) (interface{}, interface{}) {
 
 func (m probingService) Update(req interface{}) (interface{}, interface{}) {
 	r := req.(*types.RequestProbingRuleUpdate)
+
+	// 验证故障中心是否存在
+	if r.FaultCenterId != "" {
+		_, err := m.ctx.DB.FaultCenter().Get(r.TenantId, r.FaultCenterId, "")
+		if err != nil {
+			return nil, fmt.Errorf("故障中心不存在或已删除")
+		}
+	}
+
 	data := models.ProbingRule{
 		TenantId:              r.TenantId,
 		RuleName:              r.RuleName,
@@ -92,6 +112,8 @@ func (m probingService) Update(req interface{}) (interface{}, interface{}) {
 		NoticeId:              r.NoticeId,
 		Annotations:           r.Annotations,
 		RecoverNotify:         r.RecoverNotify,
+		Severity:              r.Severity,
+		FaultCenterId:         r.FaultCenterId,
 		UpdateAt:              time.Now().Unix(),
 		UpdateBy:              r.UpdateBy,
 		Enabled:               r.Enabled,
