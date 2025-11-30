@@ -124,10 +124,10 @@ func buildDingdingActionCard(alert models2.AlertCurEvent, noticeTmpl models2.Not
 					Title:     "🔔 认领告警",
 					ActionURL: fmt.Sprintf("%s/api/v1/alert/quick-action?action=claim&fingerprint=%s&token=%s", apiUrl, alert.Fingerprint, token),
 				},
-				// 静默告警按钮(默认1小时,保持兼容)
+				// 静默告警按钮(默认87600小时=10年,模拟永久静默)
 				{
 					Title:     "🔕 静默告警",
-					ActionURL: fmt.Sprintf("%s/api/v1/alert/quick-action?action=silence&fingerprint=%s&token=%s&duration=1h", apiUrl, alert.Fingerprint, token),
+					ActionURL: fmt.Sprintf("%s/api/v1/alert/quick-action?action=silence&fingerprint=%s&token=%s&duration=87600h", apiUrl, alert.Fingerprint, token),
 				},
 				// 静默1小时
 				{

@@ -54,12 +54,14 @@ func (q *quickActionService) ClaimAlert(tenantId, fingerprint, username, clientI
 	targetAlert.ConfirmState.ConfirmActionTime = time.Now().Unix()
 
 	// 推送更新后的告警到缓存
-	// 注意: 拨测告警没有FaultCenterId,所以这里只更新普通告警
+	// 注意: 只有接入故障中心的告警(有FaultCenterId)才会保存认领状态
+	// 未接入故障中心的拨测告警暂不支持认领功能
 	if targetAlert.FaultCenterId != "" {
 		q.ctx.Redis.Alert().PushAlertEvent(targetAlert)
+	} else {
+		// 未接入故障中心的告警不支持认领
+		return fmt.Errorf("该告警未接入故障中心，暂不支持认领功能")
 	}
-	// 拨测告警的认领状态暂不持久化到ProbingCache
-	// 因为ProbingCache设计上不包含ConfirmState字段
 
 	// 记录审计日志
 	q.createAuditLog(tenantId, username, clientIP, "快捷操作-认领告警", map[string]interface{}{
@@ -335,6 +337,32 @@ func (q *quickActionService) silenceAlert(tenantId, fingerprint, duration, usern
 		auditData["reason"] = reason
 	}
 	q.createAuditLog(tenantId, username, clientIP, "快捷操作-静默告警", auditData)
+
+	// 更新Redis中的告警状态为静默
+	if targetAlert.FaultCenterId != "" {
+		// 计算剩余静默时间
+		now := time.Now().Unix()
+		remainingTime := silence.EndsAt - now
+
+		// 设置静默信息
+		targetAlert.SilenceInfo = &models.SilenceInfo{
+			SilenceId:     silence.ID,
+			StartsAt:      silence.StartsAt,
+			EndsAt:        silence.EndsAt,
+			RemainingTime: remainingTime,
+			Comment:       silence.Comment,
+		}
+
+		// 更新状态为静默中
+		if err := targetAlert.TransitionStatus(models.StateSilenced); err != nil {
+			// 状态转换失败,记录但不中断流程
+			fmt.Printf("告警状态转换失败: %v\n", err)
+		}
+
+		// 推送到Redis
+		q.ctx.Redis.Alert().PushAlertEvent(targetAlert)
+	}
+	// 注意: 对于未接入故障中心的拨测告警,它们的静默由拨测worker自己处理
 
 	// 发送确认消息到群聊(异步，失败不影响主流程)
 	go func() {

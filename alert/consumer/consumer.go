@@ -266,6 +266,7 @@ func (c *Consume) isMutedEvent(event *models.AlertCurEvent, faultCenter models.F
 		Labels:        event.Labels,
 		FaultCenterId: event.FaultCenterId,
 		RecoverNotify: faultCenter.RecoverNotify,
+		Fingerprint:   event.Fingerprint,
 	})
 }
 

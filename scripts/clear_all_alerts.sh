@@ -50,7 +50,7 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}[2/3] 清空数据库中的历史告警数据...${NC}"
+echo -e "${YELLOW}[2/4] 清空数据库中的历史告警数据...${NC}"
 
 # 检查历史告警表是否存在 (尝试两种表名)
 table_exists=$(mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $MYSQL_USER -p$MYSQL_PASS -D $MYSQL_DB -sse "SHOW TABLES LIKE 'alert_his_events';" 2>/dev/null)
@@ -80,7 +80,40 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}[3/3] 清空拨测任务的独立缓存 (如果存在)...${NC}"
+echo -e "${YELLOW}[3/4] 清空数据库中的静默规则...${NC}"
+
+# 获取静默规则数量
+silence_count=$(mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $MYSQL_USER -p$MYSQL_PASS -D $MYSQL_DB -sse "SELECT COUNT(*) FROM alert_silences;" 2>/dev/null)
+
+if [ -z "$silence_count" ] || [ "$silence_count" -eq 0 ]; then
+    echo -e "${GREEN}  - 数据库中没有静默规则${NC}"
+else
+    # 清空静默规则表
+    mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $MYSQL_USER -p$MYSQL_PASS -D $MYSQL_DB -e "DELETE FROM alert_silences;" 2>/dev/null
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}  - 已删除 $silence_count 条静默规则${NC}"
+    else
+        echo -e "${RED}  - 清空静默规则失败${NC}"
+    fi
+fi
+
+# 清空Redis中的静默规则缓存
+silence_keys=$(redis-cli -h $REDIS_HOST -p $REDIS_PORT keys "w8t:*:silence:*" 2>/dev/null)
+
+if [ -z "$silence_keys" ]; then
+    echo -e "${GREEN}  - Redis中没有静默规则缓存${NC}"
+else
+    count=0
+    for key in $silence_keys; do
+        redis-cli -h $REDIS_HOST -p $REDIS_PORT del "$key" >/dev/null 2>&1
+        ((count++))
+    done
+    echo -e "${GREEN}  - 已清空 $count 个静默规则缓存${NC}"
+fi
+
+echo ""
+echo -e "${YELLOW}[4/4] 清空拨测任务的独立缓存 (如果存在)...${NC}"
 
 # 清空拨测任务的独立事件缓存
 probing_keys=$(redis-cli -h $REDIS_HOST -p $REDIS_PORT keys "w8t:*:probing:*.event" 2>/dev/null)
@@ -105,4 +138,5 @@ echo -e "${YELLOW}提示:${NC}"
 echo -e "  - 活跃告警会在下次规则评估时重新生成"
 echo -e "  - 历史告警数据已永久删除,无法恢复"
 echo -e "  - 建议在测试环境使用此脚本"
+echo -e "  ${RED}- 重要: 建议重启 WatchAlert 服务以彻底清除内存中的缓存状态${NC}"
 echo ""

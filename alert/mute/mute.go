@@ -16,6 +16,7 @@ type MuteParams struct {
 	TenantId      string
 	Labels        map[string]interface{}
 	FaultCenterId string
+	Fingerprint   string // 添加 Fingerprint 字段用于匹配快捷静默规则
 }
 
 func IsMuted(mute MuteParams) bool {
@@ -86,7 +87,7 @@ func GetMatchedSilenceRule(mute MuteParams) *models.AlertSilences {
 			continue
 		}
 
-		if evalCondition(mute.Labels, muteRule.Labels) {
+		if evalCondition(mute.Labels, mute.Fingerprint, muteRule.Labels) {
 			return muteRule
 		}
 	}
@@ -94,16 +95,29 @@ func GetMatchedSilenceRule(mute MuteParams) *models.AlertSilences {
 	return nil
 }
 
-func evalCondition(metrics map[string]interface{}, muteLabels []models.SilenceLabel) bool {
+func evalCondition(metrics map[string]interface{}, fingerprint string, muteLabels []models.SilenceLabel) bool {
 	for _, muteLabel := range muteLabels {
-		value, exists := metrics[muteLabel.Key]
-		if !exists {
-			return false
+		var val string
+		var exists bool
+
+		// 特殊处理 fingerprint 标签：直接使用参数中的 fingerprint
+		if muteLabel.Key == "fingerprint" {
+			val = fingerprint
+			exists = fingerprint != ""
+		} else {
+			// 其他标签从 metrics 中获取
+			value, ok := metrics[muteLabel.Key]
+			if !ok {
+				return false
+			}
+			val, exists = value.(string)
+			if !exists {
+				continue
+			}
 		}
 
-		val, ok := value.(string)
-		if !ok {
-			continue
+		if !exists {
+			return false
 		}
 
 		var matched bool

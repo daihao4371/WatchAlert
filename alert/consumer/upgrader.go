@@ -90,6 +90,7 @@ func isMutedEvent(event *models.AlertCurEvent, faultCenter models.FaultCenter) b
 		Labels:        event.Labels,
 		FaultCenterId: event.FaultCenterId,
 		RecoverNotify: faultCenter.RecoverNotify,
+		Fingerprint:   event.Fingerprint,
 	})
 }
 

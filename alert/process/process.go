@@ -118,6 +118,7 @@ func IsSilencedEvent(event *models.AlertCurEvent) bool {
 		TenantId:      event.TenantId,
 		Labels:        event.Labels,
 		FaultCenterId: event.FaultCenterId,
+		Fingerprint:   event.Fingerprint,
 	})
 }
 
@@ -130,6 +131,7 @@ func GetMatchedSilenceRule(event *models.AlertCurEvent) *models.AlertSilences {
 		TenantId:      event.TenantId,
 		Labels:        event.Labels,
 		FaultCenterId: event.FaultCenterId,
+		Fingerprint:   event.Fingerprint,
 	})
 }
 
