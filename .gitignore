@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Build outputs
+web/build
+web/.next
+
 # Editor directories and files
 .idea/workspace.xml
 .vscode/*
