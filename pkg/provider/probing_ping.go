@@ -1,9 +1,9 @@
 package provider
 
 import (
-	"fmt"
-	"github.com/go-ping/ping"
 	"time"
+
+	"github.com/go-ping/ping"
 )
 
 type Pinger struct{}
@@ -13,13 +13,23 @@ func NewEndpointPinger() EndpointFactoryProvider {
 }
 
 func (p Pinger) Pilot(option EndpointOption) (EndpointValue, error) {
-	var (
-		detail PingerInformation
-		ev     EndpointValue
-	)
+	var detail PingerInformation
+
 	pinger, err := ping.NewPinger(option.Endpoint)
 	if err != nil {
-		return ev, fmt.Errorf("New pinger error: %s", err.Error())
+		// Ping初始化失败时(比如域名解析失败),返回一个表示失败的结果
+		// PacketLoss设为100表示完全丢包(拨测失败)
+		return convertPingerToEndpointValues(PingerInformation{
+			Address:     option.Endpoint,
+			PacketsSent: 0,
+			PacketsRecv: 0,
+			PacketLoss:  100.0, // 100%丢包表示拨测失败
+			Addr:        "",
+			IPAddr:      "",
+			MinRtt:      0,
+			MaxRtt:      0,
+			AvgRtt:      0,
+		}), nil
 	}
 	pinger.SetPrivileged(true)
 
@@ -46,7 +56,18 @@ func (p Pinger) Pilot(option EndpointOption) (EndpointValue, error) {
 
 	err = pinger.Run()
 	if err != nil {
-		return ev, fmt.Errorf("Ping error: %s", err.Error())
+		// Ping执行失败时,返回一个表示失败的结果
+		return convertPingerToEndpointValues(PingerInformation{
+			Address:     option.Endpoint,
+			PacketsSent: option.ICMP.Count,
+			PacketsRecv: 0,
+			PacketLoss:  100.0, // 100%丢包表示拨测失败
+			Addr:        "",
+			IPAddr:      "",
+			MinRtt:      0,
+			MaxRtt:      0,
+			AvgRtt:      0,
+		}), nil
 	}
 
 	return convertPingerToEndpointValues(detail), nil

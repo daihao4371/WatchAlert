@@ -13,21 +13,40 @@ func NewEndpointSSLer() EndpointFactoryProvider {
 }
 
 func (p Ssler) Pilot(option EndpointOption) (EndpointValue, error) {
-	var (
-		detail SslInformation
-		ev     EndpointValue
-	)
+	var detail SslInformation
+
 	startTime := time.Now()
 	// 发起 HTTPS 请求
 	resp, err := tools.Get(nil, "https://"+option.Endpoint, option.Timeout)
 	if err != nil {
-		return ev, err
+		// HTTPS请求失败时(比如连接失败、证书错误),返回一个表示失败的结果
+		// TimeRemaining设为-1表示拨测失败
+		return convertSslerToEndpointValues(SslInformation{
+			Address:             option.Endpoint,
+			StartTime:           "",
+			ExpireTime:          "",
+			StartTimeFormatted:  "",
+			ExpireTimeFormatted: "",
+			TimeRemaining:       -1, // -1表示拨测失败
+			TimeRemainingText:   "拨测失败",
+			ResponseTime:        0,
+		}), nil
 	}
 	defer resp.Body.Close()
 
 	// 证书为空, 跳过检测
 	if resp.TLS == nil || len(resp.TLS.PeerCertificates) == 0 {
-		return ev, fmt.Errorf("证书为空, 跳过检测")
+		// 证书为空时,返回一个表示失败的结果
+		return convertSslerToEndpointValues(SslInformation{
+			Address:             option.Endpoint,
+			StartTime:           "",
+			ExpireTime:          "",
+			StartTimeFormatted:  "",
+			ExpireTimeFormatted: "",
+			TimeRemaining:       -1, // -1表示证书为空
+			TimeRemainingText:   "证书为空",
+			ResponseTime:        float64(time.Since(startTime).Milliseconds()),
+		}), nil
 	}
 
 	// 获取证书信息

@@ -20,7 +20,6 @@ func NewEndpointHTTPer() EndpointFactoryProvider {
 
 func (h HTTPer) Pilot(option EndpointOption) (EndpointValue, error) {
 	var (
-		ev      EndpointValue
 		res     *http.Response
 		err     error
 		headers = make(map[string][]string)
@@ -32,14 +31,27 @@ func (h HTTPer) Pilot(option EndpointOption) (EndpointValue, error) {
 	case GetHTTPMethod:
 		res, err = tools.Get(option.HTTP.Header, option.Endpoint, option.Timeout)
 		if err != nil {
-			return ev, err
+			// HTTP 请求失败时，返回一个表示失败的 EndpointValue
+			// StatusCode 设为 0 表示请求失败（连接失败、DNS解析失败等）
+			return convertHTTPerToEndpointValue(HttperInformation{
+				Address:    option.Endpoint,
+				StatusCode: 0, // 0 表示请求失败
+				Latency:    0,
+				Headers:    make(map[string][]string),
+			}), nil
 		}
 		headers = res.Header
 		defer res.Body.Close()
 	case PostHTTPMethod:
 		res, err = tools.Post(option.HTTP.Header, option.Endpoint, bytes.NewReader([]byte(option.HTTP.Body)), option.Timeout)
 		if err != nil {
-			return ev, err
+			// HTTP 请求失败时，返回一个表示失败的 EndpointValue
+			return convertHTTPerToEndpointValue(HttperInformation{
+				Address:    option.Endpoint,
+				StatusCode: 0, // 0 表示请求失败
+				Latency:    0,
+				Headers:    make(map[string][]string),
+			}), nil
 		}
 		headers = res.Header
 		defer res.Body.Close()
