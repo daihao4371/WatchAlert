@@ -108,6 +108,11 @@ func feishuTemplate(alert models.AlertCurEvent, noticeTmpl models.NoticeTemplate
 // buildFeishuActionButtonsMap 构建飞书快捷操作按钮(返回map格式)
 // 由于Elements模型不包含Actions字段,直接返回map结构
 func buildFeishuActionButtonsMap(alert models.AlertCurEvent) map[string]interface{} {
+	// 如果告警已恢复，不显示快捷操作按钮
+	if alert.IsRecovered {
+		return nil
+	}
+
 	// 获取快捷操作配置
 	quickConfig := getQuickActionConfig()
 

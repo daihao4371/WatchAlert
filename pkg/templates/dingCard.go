@@ -89,6 +89,11 @@ func buildDingdingMarkdown(alert models2.AlertCurEvent, noticeTmpl models2.Notic
 
 // buildDingdingActionCard 构建钉钉 ActionCard 消息（带快捷操作按钮）
 func buildDingdingActionCard(alert models2.AlertCurEvent, noticeTmpl models2.NoticeTemplateExample, config models2.QuickActionConfig) string {
+	// 如果告警已恢复，不显示快捷操作按钮，使用 Markdown 模式
+	if alert.IsRecovered {
+		return buildDingdingMarkdown(alert, noticeTmpl)
+	}
+
 	Title := ParserTemplate("Title", alert, noticeTmpl.Template)
 	EventText := ParserTemplate("Event", alert, noticeTmpl.Template)
 

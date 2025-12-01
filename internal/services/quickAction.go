@@ -6,7 +6,7 @@ import (
 	"time"
 	"watchAlert/internal/ctx"
 	"watchAlert/internal/models"
-	"watchAlert/pkg/sender"
+	"watchAlert/pkg/quickaction"
 	"watchAlert/pkg/tools"
 )
 
@@ -73,7 +73,7 @@ func (q *quickActionService) ClaimAlert(tenantId, fingerprint, username, clientI
 
 	// 发送确认消息到群聊(异步，失败不影响主流程)
 	go func() {
-		if err := q.sendConfirmationMessage(targetAlert, "claim", username); err != nil {
+		if err := quickaction.SendConfirmationMessage(q.ctx, targetAlert, "claim", username); err != nil {
 			fmt.Printf("发送确认消息失败: %v\n", err)
 		}
 	}()
@@ -112,7 +112,7 @@ func (q *quickActionService) ResolveAlert(tenantId, fingerprint, username, clien
 		q.ctx.Redis.Alert().PushAlertEvent(targetAlert)
 	} else {
 		// 对于拨测告警,需要更新ProbingCache
-		err := q.updateProbingEventRecovery(tenantId, targetAlert.RuleId, fingerprint)
+		err := quickaction.UpdateProbingEventRecovery(q.ctx, tenantId, targetAlert.RuleId, fingerprint)
 		if err != nil {
 			return fmt.Errorf("更新拨测告警恢复状态失败: %w", err)
 		}
@@ -128,37 +128,10 @@ func (q *quickActionService) ResolveAlert(tenantId, fingerprint, username, clien
 
 	// 发送确认消息到群聊(异步，失败不影响主流程)
 	go func() {
-		if err := q.sendConfirmationMessage(targetAlert, "resolve", username); err != nil {
+		if err := quickaction.SendConfirmationMessage(q.ctx, targetAlert, "resolve", username); err != nil {
 			fmt.Printf("发送确认消息失败: %v\n", err)
 		}
 	}()
-
-	return nil
-}
-
-// updateProbingEventRecovery 更新拨测事件的恢复状态
-// 从缓存中读取拨测事件,更新恢复状态后写回
-func (q *quickActionService) updateProbingEventRecovery(tenantId, ruleId, fingerprint string) error {
-	cacheKey := models.BuildProbingEventCacheKey(tenantId, ruleId)
-
-	// 获取拨测事件
-	probingEvent, err := q.ctx.Redis.Probing().GetProbingEventCache(cacheKey)
-	if err != nil {
-		return err
-	}
-
-	// 验证指纹匹配
-	if probingEvent.Fingerprint != fingerprint {
-		return fmt.Errorf("指纹不匹配")
-	}
-
-	// 更新恢复状态
-	probingEvent.IsRecovered = true
-	probingEvent.RecoverTime = time.Now().Unix()
-	probingEvent.LastSendTime = 0 // 重置发送时间,触发恢复通知
-
-	// 写回缓存
-	q.ctx.Redis.Probing().SetProbingEventCache(*probingEvent, 0)
 
 	return nil
 }
@@ -196,68 +169,12 @@ func (q *quickActionService) GetAlertByFingerprint(tenantId, fingerprint string)
 	}
 
 	// 2. 如果在普通告警中没找到，尝试从拨测告警缓存(ProbingCache)中查找
-	probingAlert, err := q.findProbingAlertByFingerprint(tenantId, fingerprint)
+	probingAlert, err := quickaction.FindProbingAlertByFingerprint(q.ctx, tenantId, fingerprint)
 	if err == nil && probingAlert != nil {
 		return probingAlert, nil
 	}
 
 	return nil, fmt.Errorf("未找到指纹为 %s 的告警 或者告警失效了", fingerprint)
-}
-
-// findProbingAlertByFingerprint 从拨测告警缓存中查找指定指纹的告警
-// 遍历所有拨测规则的缓存，找到匹配的拨测事件并转换为标准告警格式
-func (q *quickActionService) findProbingAlertByFingerprint(tenantId, fingerprint string) (*models.AlertCurEvent, error) {
-	// 获取租户下所有启用的拨测规则
-	var probingRules []models.ProbingRule
-	err := q.ctx.DB.DB().Where("tenant_id = ? AND enabled = ?", tenantId, true).Find(&probingRules).Error
-	if err != nil {
-		return nil, err
-	}
-
-	// 遍历每个拨测规则，查找匹配的告警
-	for _, rule := range probingRules {
-		// 构建拨测事件缓存key
-		cacheKey := models.BuildProbingEventCacheKey(rule.TenantId, rule.RuleId)
-
-		// 从ProbingCache获取拨测事件
-		probingEvent, err := q.ctx.Redis.Probing().GetProbingEventCache(cacheKey)
-		if err != nil {
-			continue // 忽略错误，继续下一个规则
-		}
-
-		// 检查指纹是否匹配
-		if probingEvent.Fingerprint == fingerprint {
-			// 将ProbingEvent转换为AlertCurEvent
-			alertEvent := q.convertProbingEventToAlertEvent(probingEvent)
-			return &alertEvent, nil
-		}
-	}
-
-	return nil, fmt.Errorf("未在拨测告警中找到指纹: %s", fingerprint)
-}
-
-// convertProbingEventToAlertEvent 将拨测事件转换为标准告警事件
-// 确保拨测告警也能被快捷操作正确处理
-func (q *quickActionService) convertProbingEventToAlertEvent(probingEvent *models.ProbingEvent) models.AlertCurEvent {
-	return models.AlertCurEvent{
-		TenantId:               probingEvent.TenantId,
-		RuleName:               probingEvent.RuleName,
-		RuleId:                 probingEvent.RuleId,
-		Fingerprint:            probingEvent.Fingerprint,
-		Labels:                 probingEvent.Labels,
-		Annotations:            probingEvent.Annotations,
-		IsRecovered:            probingEvent.IsRecovered,
-		FirstTriggerTime:       probingEvent.FirstTriggerTime,
-		FirstTriggerTimeFormat: probingEvent.FirstTriggerTimeFormat,
-		RepeatNoticeInterval:   probingEvent.RepeatNoticeInterval,
-		LastEvalTime:           probingEvent.LastEvalTime,
-		LastSendTime:           probingEvent.LastSendTime,
-		RecoverTime:            probingEvent.RecoverTime,
-		RecoverTimeFormat:      probingEvent.RecoverTimeFormat,
-		DutyUser:               probingEvent.DutyUser,
-		// 注意: Probing告警没有FaultCenterId,ConfirmState等字段
-		// 这些字段保持默认值
-	}
 }
 
 // ------------------------ 私有辅助方法 ------------------------
@@ -272,13 +189,13 @@ func (q *quickActionService) silenceAlert(tenantId, fingerprint, duration, usern
 	}
 
 	// 检查是否已经存在该指纹的激活静默规则(防止重复静默)
-	existingSilence, err := q.findActiveSilenceByFingerprint(tenantId, fingerprint)
+	existingSilence, err := quickaction.FindActiveSilenceByFingerprint(q.ctx, tenantId, fingerprint)
 	if err == nil && existingSilence != nil {
 		// 计算剩余静默时间
 		remainingTime := existingSilence.EndsAt - time.Now().Unix()
 		if remainingTime > 0 {
 			remainingDuration := time.Duration(remainingTime) * time.Second
-			return fmt.Errorf("该告警已处于静默状态,剩余时长: %s", q.formatDurationChinese(remainingDuration.String()))
+			return fmt.Errorf("该告警已处于静默状态,剩余时长: %s", quickaction.FormatDurationChinese(remainingDuration.String()))
 		}
 	}
 
@@ -366,7 +283,7 @@ func (q *quickActionService) silenceAlert(tenantId, fingerprint, duration, usern
 
 	// 发送确认消息到群聊(异步，失败不影响主流程)
 	go func() {
-		if err := q.sendConfirmationMessage(targetAlert, "silence", username, duration); err != nil {
+		if err := quickaction.SendConfirmationMessage(q.ctx, targetAlert, "silence", username, duration); err != nil {
 			fmt.Printf("发送确认消息失败: %v\n", err)
 		}
 	}()
@@ -405,406 +322,4 @@ func (q *quickActionService) createAuditLog(tenantId, username, clientIP, auditT
 			fmt.Printf("审计日志写入失败: %v\n", err)
 		}
 	}()
-}
-
-// getWebhookFromAlert 从告警事件中反查Webhook配置
-// 通过告警的FaultCenterId获取故障中心，再从NoticeIds中获取通知对象的Webhook信息
-// 返回值: hook(Webhook地址), sign(签名), noticeType(通知类型: feishu/dingtalk), error
-func (q *quickActionService) getWebhookFromAlert(alert *models.AlertCurEvent) (string, string, string, error) {
-	// 1. 获取故障中心信息（包含通知对象ID列表）
-	var faultCenter models.FaultCenter
-	var err error
-
-	if alert.FaultCenterId != "" {
-		// 普通告警：通过FaultCenterId获取故障中心（name参数为空字符串）
-		faultCenter, err = q.ctx.DB.FaultCenter().Get(alert.TenantId, alert.FaultCenterId, "")
-		if err != nil {
-			return "", "", "", fmt.Errorf("获取故障中心失败: %w", err)
-		}
-	} else {
-		// 拨测告警：通过RuleId查找拨测规则
-		return q.getWebhookFromProbingRule(alert)
-	}
-
-	// 2. 遍历故障中心的通知对象ID，查找支持的通知类型(飞书或钉钉)
-	for _, noticeId := range faultCenter.NoticeIds {
-		noticeObj, err := q.ctx.DB.Notice().Get(alert.TenantId, noticeId)
-		if err != nil {
-			continue // 跳过获取失败的通知对象
-		}
-
-		// 检查是否为飞书或钉钉通知
-		if noticeObj.NoticeType == "FeiShu" {
-			hook, sign := q.extractWebhookFromNotice(&noticeObj, alert)
-			if hook != "" {
-				return hook, sign, "feishu", nil
-			}
-		} else if noticeObj.NoticeType == "DingDing" {
-			hook, sign := q.extractWebhookFromNotice(&noticeObj, alert)
-			if hook != "" {
-				return hook, sign, "dingtalk", nil
-			}
-		}
-	}
-
-	return "", "", "", fmt.Errorf("未找到飞书或钉钉通知配置")
-}
-
-// getWebhookFromProbingRule 从拨测规则中获取Webhook配置
-// 拨测规则直接包含NoticeId字段
-func (q *quickActionService) getWebhookFromProbingRule(alert *models.AlertCurEvent) (string, string, string, error) {
-	// 查询拨测规则
-	var probingRule models.ProbingRule
-	err := q.ctx.DB.DB().
-		Where("tenant_id = ? AND rule_id = ?", alert.TenantId, alert.RuleId).
-		First(&probingRule).Error
-	if err != nil {
-		return "", "", "", fmt.Errorf("获取拨测规则失败: %w", err)
-	}
-
-	// 获取通知对象
-	noticeObj, err := q.ctx.DB.Notice().Get(alert.TenantId, probingRule.NoticeId)
-	if err != nil {
-		return "", "", "", fmt.Errorf("获取通知对象失败: %w", err)
-	}
-
-	// 提取Webhook配置
-	hook, sign := q.extractWebhookFromNotice(&noticeObj, alert)
-	if hook == "" {
-		return "", "", "", fmt.Errorf("未找到有效的Webhook配置")
-	}
-
-	// 根据通知类型返回对应的noticeType
-	var noticeType string
-	if noticeObj.NoticeType == "FeiShu" {
-		noticeType = "feishu"
-	} else if noticeObj.NoticeType == "DingDing" {
-		noticeType = "dingtalk"
-	} else {
-		return "", "", "", fmt.Errorf("不支持的通知类型: %s", noticeObj.NoticeType)
-	}
-
-	return hook, sign, noticeType, nil
-}
-
-// extractWebhookFromNotice 从通知对象中提取Webhook配置
-// 优先使用DefaultHook，如果为空则根据告警等级从Routes中查找
-func (q *quickActionService) extractWebhookFromNotice(notice *models.AlertNotice, alert *models.AlertCurEvent) (string, string) {
-	// 优先使用默认Webhook
-	if notice.DefaultHook != "" {
-		return notice.DefaultHook, notice.DefaultSign
-	}
-
-	// 如果没有默认Webhook，从Routes中根据告警等级查找
-	for _, route := range notice.Routes {
-		if route.Severity == alert.Severity {
-			return route.Hook, route.Sign
-		}
-	}
-
-	// 如果没有匹配的等级，尝试使用第一个Route
-	if len(notice.Routes) > 0 {
-		return notice.Routes[0].Hook, notice.Routes[0].Sign
-	}
-
-	return "", ""
-}
-
-// buildDingTalkConfirmationMessage 构建钉钉确认消息（Markdown格式）
-// 用于告知群成员快捷操作的执行结果
-// 使用 Markdown 格式,提供更美观的卡片样式展示
-func (q *quickActionService) buildDingTalkConfirmationMessage(
-	alert *models.AlertCurEvent,
-	actionType, username string,
-	duration ...string, // 可选参数，用于静默时传递时长
-) string {
-	// 根据操作类型生成操作描述、图标和标题
-	var actionDesc, actionIcon, title string
-	switch actionType {
-	case "claim":
-		actionDesc = "认领"
-		actionIcon = "🔔"
-		title = "告警快捷操作通知"
-	case "silence":
-		// 如果提供了duration参数,显示具体静默时长
-		if len(duration) > 0 && duration[0] != "" {
-			actionDesc = fmt.Sprintf("静默 %s", q.formatDurationChinese(duration[0]))
-		} else {
-			actionDesc = "静默"
-		}
-		actionIcon = "🔕"
-		title = "告警快捷操作通知"
-	case "resolve":
-		actionDesc = "标记已处理"
-		actionIcon = "✅"
-		title = "告警快捷操作通知"
-	default:
-		actionDesc = actionType
-		actionIcon = "ℹ️"
-		title = "告警快捷操作通知"
-	}
-
-	// 构建 Markdown 格式的消息内容
-	// 参考钉钉官方文档的 Markdown 语法
-	markdownText := fmt.Sprintf(
-		"#### %s %s\n\n"+
-			"**📋 告警名称**: %s\n\n"+
-			"**🎯 操作类型**: %s\n\n"+
-			"**👤 操作人**: %s\n\n"+
-			"**⏰ 操作时间**: %s\n\n"+
-			"---\n\n"+
-			"💡 此消息由 WatchAlert 告警系统自动发送，原告警按钮已失效",
-		actionIcon,
-		title,
-		alert.RuleName,
-		actionDesc,
-		username,
-		time.Now().Format("2006-01-02 15:04:05"),
-	)
-
-	// 构建钉钉 Markdown 消息格式
-	msg := map[string]interface{}{
-		"msgtype": "markdown",
-		"markdown": map[string]interface{}{
-			"title": fmt.Sprintf("%s %s", actionIcon, title),
-			"text":  markdownText,
-		},
-	}
-
-	return tools.JsonMarshalToString(msg)
-}
-
-// buildFeishuConfirmationMessage 构建飞书确认消息（交互式卡片格式）
-// 用于告知群成员快捷操作的执行结果
-// 注意: 确认消息不包含操作按钮,避免用户重复操作
-// duration是可选参数,用于静默操作时显示具体时长
-func (q *quickActionService) buildFeishuConfirmationMessage(
-	alert *models.AlertCurEvent,
-	actionType, username string,
-	duration ...string, // 可选参数，用于静默时传递时长
-) string {
-	// 根据操作类型生成操作描述和图标
-	var actionDesc, actionIcon, headerColor, noteText string
-	switch actionType {
-	case "claim":
-		actionDesc = "认领"
-		actionIcon = "🔔"
-		headerColor = "blue"
-		noteText = "该告警已被认领,后续操作将由认领人负责"
-	case "silence":
-		// 如果提供了duration参数,显示具体静默时长
-		if len(duration) > 0 && duration[0] != "" {
-			actionDesc = fmt.Sprintf("静默 %s", q.formatDurationChinese(duration[0]))
-		} else {
-			actionDesc = "静默"
-		}
-		actionIcon = "🔕"
-		headerColor = "orange"
-		noteText = "告警已静默,在静默期间不会再次发送通知"
-	case "resolve":
-		actionDesc = "标记已处理"
-		actionIcon = "✅"
-		headerColor = "green"
-		noteText = "该告警已标记为已处理状态"
-	default:
-		actionDesc = actionType
-		actionIcon = "ℹ️"
-		headerColor = "grey"
-		noteText = "操作已完成"
-	}
-
-	// 构建飞书交互式卡片
-	card := map[string]interface{}{
-		"msg_type": "interactive",
-		"card": map[string]interface{}{
-			"header": map[string]interface{}{
-				"template": headerColor,
-				"title": map[string]interface{}{
-					"tag":     "plain_text",
-					"content": fmt.Sprintf("%s 告警快捷操作通知", actionIcon),
-				},
-			},
-			"elements": []map[string]interface{}{
-				{
-					"tag": "div",
-					"fields": []map[string]interface{}{
-						{
-							"is_short": true,
-							"text": map[string]interface{}{
-								"tag":     "lark_md",
-								"content": fmt.Sprintf("**告警名称**\n%s", alert.RuleName),
-							},
-						},
-						{
-							"is_short": true,
-							"text": map[string]interface{}{
-								"tag":     "lark_md",
-								"content": fmt.Sprintf("**操作类型**\n%s", actionDesc),
-							},
-						},
-					},
-				},
-				{
-					"tag": "div",
-					"fields": []map[string]interface{}{
-						{
-							"is_short": true,
-							"text": map[string]interface{}{
-								"tag":     "lark_md",
-								"content": fmt.Sprintf("**操作人**\n%s", username),
-							},
-						},
-						{
-							"is_short": true,
-							"text": map[string]interface{}{
-								"tag":     "lark_md",
-								"content": fmt.Sprintf("**操作时间**\n%s", time.Now().Format("2006-01-02 15:04:05")),
-							},
-						},
-					},
-				},
-				{
-					"tag": "hr",
-				},
-				{
-					"tag": "div",
-					"text": map[string]interface{}{
-						"tag":     "lark_md",
-						"content": fmt.Sprintf("💡 **提示**: %s", noteText),
-					},
-				},
-				{
-					"tag": "note",
-					"elements": []map[string]interface{}{
-						{
-							"tag":     "plain_text",
-							"content": "此消息由 WatchAlert 告警系统自动发送 | 原告警按钮已失效",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	return tools.JsonMarshalToString(card)
-}
-
-// sendConfirmationMessage 发送确认消息到群聊
-// 操作成功后自动发送一条新消息，告知群成员操作结果
-// 支持飞书和钉钉两种通知类型
-// duration参数是可选的，仅在静默操作时需要传递
-func (q *quickActionService) sendConfirmationMessage(
-	alert *models.AlertCurEvent,
-	actionType, username string,
-	duration ...string, // 可选参数，用于静默时传递时长
-) error {
-	// 1. 获取Webhook信息
-	hook, sign, noticeType, err := q.getWebhookFromAlert(alert)
-	if err != nil {
-		return fmt.Errorf("无法发送确认消息: %w", err)
-	}
-
-	// 2. 根据通知类型构建不同的消息内容
-	var message string
-	switch noticeType {
-	case "feishu":
-		message = q.buildFeishuConfirmationMessage(alert, actionType, username, duration...)
-	case "dingtalk":
-		message = q.buildDingTalkConfirmationMessage(alert, actionType, username, duration...)
-	default:
-		return fmt.Errorf("不支持的通知类型: %s", noticeType)
-	}
-
-	// 3. 发送消息
-	return q.sendMessage(hook, sign, noticeType, message)
-}
-
-// sendMessage 发送消息到飞书或钉钉(通用方法，避免代码重复)
-// 根据通知类型选择对应的发送器
-func (q *quickActionService) sendMessage(hook, sign, noticeType, message string) error {
-	params := sender.SendParams{
-		Hook:    hook,
-		Sign:    sign,
-		Content: message,
-	}
-
-	switch noticeType {
-	case "feishu":
-		return sender.NewFeiShuSender().Send(params)
-	case "dingtalk":
-		return sender.NewDingSender().Send(params)
-	default:
-		return fmt.Errorf("不支持的通知类型: %s", noticeType)
-	}
-}
-
-// findActiveSilenceByFingerprint 查找指定指纹的激活静默规则
-// 用于防止重复静默同一个告警
-func (q *quickActionService) findActiveSilenceByFingerprint(tenantId, fingerprint string) (*models.AlertSilences, error) {
-	// 查询数据库中的所有静默规则
-	var silences []models.AlertSilences
-	err := q.ctx.DB.DB().
-		Where("tenant_id = ? AND status = ?", tenantId, 1). // status=1 表示启用状态
-		Find(&silences).Error
-	if err != nil {
-		return nil, err
-	}
-
-	// 当前时间戳
-	now := time.Now().Unix()
-
-	// 遍历静默规则,查找匹配指纹且仍在有效期内的规则
-	for _, silence := range silences {
-		// 检查静默规则是否已过期
-		if silence.EndsAt <= now {
-			continue
-		}
-
-		// 检查静默规则的标签是否匹配该指纹
-		for _, label := range silence.Labels {
-			if label.Key == "fingerprint" && label.Value == fingerprint && label.Operator == "=" {
-				return &silence, nil
-			}
-		}
-	}
-
-	return nil, fmt.Errorf("未找到激活的静默规则")
-}
-
-// formatDurationChinese 将Go的duration格式(如"1h"、"6h"、"24h")转换为中文友好格式
-// 支持的输入格式: "1h" -> "1小时", "30m" -> "30分钟", "24h" -> "24小时"
-func (q *quickActionService) formatDurationChinese(durationStr string) string {
-	// 解析duration字符串
-	dur, err := time.ParseDuration(durationStr)
-	if err != nil {
-		return durationStr // 解析失败,返回原始字符串
-	}
-
-	// 转换为秒数
-	totalSeconds := int64(dur.Seconds())
-
-	// 计算各个时间单位
-	days := totalSeconds / 86400
-	hours := (totalSeconds % 86400) / 3600
-	minutes := (totalSeconds % 3600) / 60
-
-	// 构建中文格式
-	var result string
-	if days > 0 {
-		result = fmt.Sprintf("%d天", days)
-		if hours > 0 {
-			result += fmt.Sprintf("%d小时", hours)
-		}
-	} else if hours > 0 {
-		result = fmt.Sprintf("%d小时", hours)
-		if minutes > 0 {
-			result += fmt.Sprintf("%d分钟", minutes)
-		}
-	} else if minutes > 0 {
-		result = fmt.Sprintf("%d分钟", minutes)
-	} else {
-		result = fmt.Sprintf("%d秒", totalSeconds)
-	}
-
-	return result
 }
