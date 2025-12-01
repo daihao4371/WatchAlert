@@ -84,18 +84,40 @@ func PushEventToFaultCenter(ctx *ctx.Context, event *models.AlertCurEvent) {
 		// 如果需要静默
 		if isSilenced {
 			event.TransitionStatus(models.StateSilenced)
+		} else if event.IsRecovered {
+			// 如果已恢复，但当前处于预告警状态，直接忽略（不应该出现这种情况）
+			// 这种情况通常发生在告警还未达到持续时间就恢复了
+			return
 		} else if event.IsArriveForDuration() {
 			// 如果达到持续时间，转为告警状态
 			event.TransitionStatus(models.StateAlerting)
 		}
 	case models.StateAlerting:
-		// 如果需要静默
-		if isSilenced {
+		// 优先检查是否恢复
+		if event.IsRecovered {
+			// 告警恢复：告警中 → 已恢复
+			event.TransitionStatus(models.StateRecovered)
+		} else if isSilenced {
+			// 如果需要静默
 			event.TransitionStatus(models.StateSilenced)
+		}
+	case models.StatePendingRecovery:
+		// 待恢复状态的处理
+		if event.IsRecovered {
+			// 待恢复 → 已恢复
+			event.TransitionStatus(models.StateRecovered)
+		} else {
+			// 如果又出现告警（恢复失败），转回告警状态
+			event.TransitionStatus(models.StateAlerting)
 		}
 	case models.StateSilenced:
 		// 如果不再静默，转换回预告警状态
 		if !isSilenced {
+			event.TransitionStatus(models.StatePreAlert)
+		}
+	case models.StateRecovered:
+		// 已恢复状态下，如果再次触发告警（非恢复事件），转回预告警状态
+		if !event.IsRecovered {
 			event.TransitionStatus(models.StatePreAlert)
 		}
 	}
