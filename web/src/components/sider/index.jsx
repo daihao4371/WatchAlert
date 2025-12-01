@@ -401,18 +401,17 @@ export const ComponentSider = () => {
                     }}>
                         <Avatar
                             style={{
-                                backgroundColor: "#7265e6",
+                                backgroundColor: "#1890ff",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                             }}
                             size="default"
-                        >
-                            {userInfo.username ? userInfo.username.charAt(0).toUpperCase() : ""}
-                        </Avatar>
+                            icon={<UserOutlined />}
+                        />
                         <div style={{marginLeft: "12px", overflow: 'hidden'}}>
                             <Typography.Text style={{color: "#FFFFFFA6", display: 'block'}}>
-                                {userInfo.username}
+                                {userInfo?.username || ""}
                             </Typography.Text>
                         </div>
                     </div>
