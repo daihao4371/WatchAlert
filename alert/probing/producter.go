@@ -143,6 +143,15 @@ func (t *ProductProbing) worker(rule models.ProbingRule) {
 				process.PushEventToFaultCenter(t.ctx, alertEvent)
 			}
 		} else {
+			// 检查缓存中的告警是否已经恢复，避免重复推送恢复事件
+			cacheEvent, _ := t.ctx.Redis.Alert().GetEventFromCache(event.TenantId, rule.FaultCenterId, event.Fingerprint)
+			if cacheEvent.IsRecovered {
+				// 已经恢复过了，不再重复推送
+				// 但需要清理内存中的失败频次计数器
+				t.cleanFrequency(t.FailFrequency, event.RuleId)
+				return
+			}
+
 			// 控制成功频次
 			t.setFrequency(t.OkFrequency, event.RuleId)
 			if t.getFrequency(t.OkFrequency, event.RuleId) >= 3 {
