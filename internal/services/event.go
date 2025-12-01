@@ -118,7 +118,13 @@ func (e eventService) ListCurrentEvent(req interface{}) (interface{}, interface{
 			continue
 		}
 
-		if r.Status != "" && string(event.Status) != r.Status {
+		// 如果没有指定状态过滤，默认过滤掉已恢复的告警（活跃告警列表不应该显示已恢复的告警）
+		if r.Status == "" {
+			if event.Status == models.StateRecovered {
+				continue
+			}
+		} else if string(event.Status) != r.Status {
+			// 如果指定了状态过滤，则按指定状态过滤
 			continue
 		}
 

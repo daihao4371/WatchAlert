@@ -50,6 +50,7 @@ func HandleAlert(ctx *ctx.Context, processType string, faultCenter models.FaultC
 			Hook, Sign := getNoticeHookUrlAndSign(noticeData, severity)
 
 			for _, event := range events {
+				// 对于告警事件，更新 LastSendTime
 				if processType == "alarm" && !event.IsRecovered {
 					event.LastSendTime = curTime
 					ctx.Redis.Alert().PushAlertEvent(event)
@@ -85,6 +86,12 @@ func HandleAlert(ctx *ctx.Context, processType string, faultCenter models.FaultC
 				})
 				if err != nil {
 					logc.Error(ctx.Ctx, fmt.Sprintf("Failed to send alert: %v", err))
+				} else {
+					// 恢复通知发送成功后，更新 LastSendTime，避免重复发送
+					if processType == "alarm" && event.IsRecovered && event.LastSendTime == 0 {
+						event.LastSendTime = curTime
+						ctx.Redis.Alert().PushAlertEvent(event)
+					}
 				}
 			}
 			return nil

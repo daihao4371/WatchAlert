@@ -85,9 +85,9 @@ func PushEventToFaultCenter(ctx *ctx.Context, event *models.AlertCurEvent) {
 		if isSilenced {
 			event.TransitionStatus(models.StateSilenced)
 		} else if event.IsRecovered {
-			// 如果已恢复，但当前处于预告警状态，直接忽略（不应该出现这种情况）
-			// 这种情况通常发生在告警还未达到持续时间就恢复了
-			return
+			// 如果已恢复，但当前处于预告警状态，允许直接转换到已恢复状态
+			// 这种情况通常发生在拨测告警还未达到持续时间就恢复了（快速恢复场景）
+			event.TransitionStatus(models.StateRecovered)
 		} else if event.IsArriveForDuration() {
 			// 如果达到持续时间，转为告警状态
 			event.TransitionStatus(models.StateAlerting)

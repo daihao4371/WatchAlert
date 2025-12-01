@@ -236,16 +236,17 @@ func (c *Consume) filterAlertEvents(faultCenter models.FaultCenter, alerts map[s
 	var newEvents []*models.AlertCurEvent
 
 	for _, event := range alerts {
-		// 过滤掉 预告警, 待恢复 状态的事件
-		if event.Status == models.StatePreAlert || event.Status == models.StatePendingRecovery {
+		// 过滤掉 预告警, 待恢复, 已恢复 状态的事件
+		// 已恢复的告警不应该出现在活跃告警列表中
+		if event.Status == models.StatePreAlert || event.Status == models.StatePendingRecovery || event.Status == models.StateRecovered {
+			// 当告警处于已恢复状态时，从缓存中移除（已恢复的告警应该移到历史告警中）
+			if event.Status == models.StateRecovered {
+				c.ctx.Redis.Alert().RemoveAlertEvent(event.TenantId, event.FaultCenterId, event.Fingerprint)
+			}
 			continue
 		}
 
 		if c.isMutedEvent(event, faultCenter) {
-			// 当告警处于静默状态时触发了恢复告警，直接移除即可 不需要发送消息。
-			if event.Status == models.StateRecovered {
-				c.ctx.Redis.Alert().RemoveAlertEvent(event.TenantId, event.FaultCenterId, event.Fingerprint)
-			}
 			continue
 		}
 
@@ -277,7 +278,14 @@ func (c *Consume) validateEvent(event *models.AlertCurEvent, faultCenter models.
 		return false
 	}
 
-	return event.IsRecovered || event.LastSendTime == 0 ||
+	// 恢复事件：只有在 LastSendTime == 0 时才发送（即首次恢复通知）
+	// 一旦发送过恢复通知（LastSendTime > 0），就不再重复发送
+	if event.IsRecovered {
+		return event.LastSendTime == 0
+	}
+
+	// 告警事件：根据 LastSendTime 和重复通知间隔判断是否需要发送
+	return event.LastSendTime == 0 ||
 		event.LastEvalTime >= event.LastSendTime+faultCenter.RepeatNoticeInterval*60
 }
 

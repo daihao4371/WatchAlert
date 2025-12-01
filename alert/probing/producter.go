@@ -89,7 +89,9 @@ func (t *ProductProbing) worker(rule models.ProbingRule) {
 	}
 
 	event := t.buildEvent(rule)
-	event.Fingerprint = eValue.GetFingerprint()
+	// 拨测告警的指纹基于 ruleId，而不是 address
+	// 这样即使域名变化，也能正确匹配到同一个规则下的告警事件
+	event.Fingerprint = tools.Md5Hash([]byte(event.RuleId))
 	event.Labels = eValue.GetLabels()
 	var isValue float64
 	if rule.RuleType != provider.TCPEndpointProvider {
@@ -144,7 +146,18 @@ func (t *ProductProbing) worker(rule models.ProbingRule) {
 			}
 		} else {
 			// 检查缓存中的告警是否已经恢复，避免重复推送恢复事件
-			cacheEvent, _ := t.ctx.Redis.Alert().GetEventFromCache(event.TenantId, rule.FaultCenterId, event.Fingerprint)
+			cacheEvent, err := t.ctx.Redis.Alert().GetEventFromCache(event.TenantId, rule.FaultCenterId, event.Fingerprint)
+			// 如果通过新指纹找不到告警事件，尝试通过 ruleId 查找（兼容旧指纹）
+			if err != nil || cacheEvent.RuleId == "" {
+				fingerprints := t.ctx.Redis.Alert().GetFingerprintsByRuleId(event.TenantId, rule.FaultCenterId, event.RuleId)
+				if len(fingerprints) > 0 {
+					// 使用第一个找到的指纹（通常是旧的基于 address 的指纹）
+					cacheEvent, _ = t.ctx.Redis.Alert().GetEventFromCache(event.TenantId, rule.FaultCenterId, fingerprints[0])
+					// 更新 alertEvent 的指纹为找到的旧指纹，确保能正确更新缓存
+					alertEvent.Fingerprint = fingerprints[0]
+				}
+			}
+
 			if cacheEvent.IsRecovered {
 				// 已经恢复过了，不再重复推送
 				// 但需要清理内存中的失败频次计数器

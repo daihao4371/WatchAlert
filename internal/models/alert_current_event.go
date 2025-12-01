@@ -100,7 +100,7 @@ func (alert *AlertCurEvent) validateTransition(newState AlertStatus) error {
 
 	// 定义允许的状态转换规则
 	allowedTransitions := map[AlertStatus][]AlertStatus{
-		StatePreAlert:        {StateAlerting, StateSilenced},
+		StatePreAlert:        {StateAlerting, StateSilenced, StateRecovered}, // 允许预告警直接恢复（适用于拨测告警快速恢复场景）
 		StateAlerting:        {StatePendingRecovery, StateSilenced},
 		StatePendingRecovery: {StateAlerting, StateRecovered},
 		StateRecovered:       {StatePreAlert},
