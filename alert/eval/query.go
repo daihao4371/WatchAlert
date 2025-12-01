@@ -142,14 +142,10 @@ func metrics(ctx *ctx.Context, datasourceId, datasourceType string, rule models.
 				process.PushEventToFaultCenter(ctx, &event)
 				curFingerprints = append(curFingerprints, fingerprint)
 			} else {
-				// 更新恢复时最新值
-				cache, err := ctx.Redis.Alert().GetEventFromCache(event.TenantId, event.FaultCenterId, event.Fingerprint)
-				if err == nil {
-					if !cache.IsRecovered || cache.Status != models.StateRecovered {
-						event.Labels["value"] = v.GetValue()
-						process.PushEventToFaultCenter(ctx, &event)
-					}
-				}
+				// 当评估条件不满足时（指标值恢复正常），不推送事件
+				// 恢复逻辑由 Recover 方法统一处理，避免干扰恢复流程
+				// 如果此时推送 StatePreAlert 状态的事件，可能会将 StateAlerting 状态的事件转换回 StatePreAlert
+				// 导致 Recover 方法无法正确检测到需要恢复的事件
 			}
 		}
 	}

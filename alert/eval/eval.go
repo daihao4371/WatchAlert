@@ -260,11 +260,15 @@ func (t *AlertRule) Recover(tenantId, ruleId string, eventCacheKey models.AlertE
 		}
 
 		// 移除状态为预告警且当前告警列表中不存在的事件
+		// 注意：StateAlerting、StatePendingRecovery、StateRecovered 状态的事件不应该被移除
+		// 它们需要进入恢复流程或保持当前状态
 		if event.Status == models.StatePreAlert && !slices.Contains(curFingerprints, fingerprint) {
 			t.ctx.Redis.Alert().RemoveAlertEvent(event.TenantId, event.FaultCenterId, event.Fingerprint)
 			continue
 		}
 
+		// 将所有非预告警状态的事件（或预告警但在当前活动列表中的事件）添加到活动列表
+		// 这样 StateAlerting 状态的事件可以进入恢复流程
 		activeRuleFingerprints = append(activeRuleFingerprints, fingerprint)
 	}
 
@@ -337,6 +341,18 @@ func (t *AlertRule) Recover(tenantId, ruleId string, eventCacheKey models.AlertE
 				logc.Errorf(t.ctx.Ctx, "Failed to transition to recovered state for fingerprint %s: %v", fingerprint, err)
 				continue
 			}
+			// 确保恢复标志和发送时间正确设置（TransitionStatus 会自动设置，但为了保险再确认一次）
+			// handleStateTransition 已经设置了 IsRecovered = true 和 LastSendTime = 0
+			// 但为了确保恢复通知能发送，再次确认
+			if !newEvent.IsRecovered {
+				newEvent.IsRecovered = true
+			}
+			if newEvent.LastSendTime != 0 {
+				newEvent.LastSendTime = 0
+			}
+			// 记录恢复事件推送日志
+			logc.Infof(t.ctx.Ctx, "[普通告警恢复] 推送恢复事件: ruleId=%s, fingerprint=%s, ruleName=%s",
+				newEvent.RuleId, newEvent.Fingerprint, newEvent.RuleName)
 			// 更新告警事件
 			t.ctx.Redis.Alert().PushAlertEvent(newEvent)
 			// 恢复后继续处理下一个事件
