@@ -39,7 +39,25 @@ func PushEventToFaultCenter(ctx *ctx.Context, event *models.AlertCurEvent) {
 	}
 
 	cache := ctx.Redis
-	cacheEvent, _ := cache.Alert().GetEventFromCache(event.TenantId, event.FaultCenterId, event.Fingerprint)
+	cacheEvent, err := cache.Alert().GetEventFromCache(event.TenantId, event.FaultCenterId, event.Fingerprint)
+
+	// 如果是恢复事件但找不到缓存事件，记录警告日志
+	if event.IsRecovered && (err != nil || cacheEvent.RuleId == "") {
+		logc.Errorf(ctx.Ctx, "[恢复事件警告] 找不到缓存事件: ruleId=%s, fingerprint=%s, ruleName=%s, error=%v",
+			event.RuleId, event.Fingerprint, event.RuleName, err)
+		// 如果找不到缓存事件，尝试通过 ruleId 查找（兼容旧指纹）
+		if event.RuleId != "" {
+			fingerprints := cache.Alert().GetFingerprintsByRuleId(event.TenantId, event.FaultCenterId, event.RuleId)
+			if len(fingerprints) > 0 {
+				// 使用第一个找到的指纹（通常是旧的基于 address 的指纹）
+				cacheEvent, _ = cache.Alert().GetEventFromCache(event.TenantId, event.FaultCenterId, fingerprints[0])
+				// 更新 event 的指纹为找到的旧指纹，确保能正确更新缓存
+				event.Fingerprint = fingerprints[0]
+				logc.Infof(ctx.Ctx, "[恢复事件] 通过 ruleId 找到旧指纹: ruleId=%s, oldFingerprint=%s, newFingerprint=%s",
+					event.RuleId, fingerprints[0], event.Fingerprint)
+			}
+		}
+	}
 
 	// 获取基础信息
 	event.FirstTriggerTime = cacheEvent.GetFirstTime()
@@ -48,6 +66,12 @@ func PushEventToFaultCenter(ctx *ctx.Context, event *models.AlertCurEvent) {
 	event.ConfirmState = cacheEvent.GetLastConfirmState()
 	event.EventId = cacheEvent.GetEventId()
 	event.FaultCenter = cache.FaultCenter().GetFaultCenterInfo(models.BuildFaultCenterInfoCacheKey(event.TenantId, event.FaultCenterId))
+
+	// 如果是恢复事件，重置 LastSendTime 为 0，确保恢复通知能够发送
+	// 因为 consumer 中恢复事件只有在 LastSendTime == 0 时才会发送
+	if event.IsRecovered {
+		event.LastSendTime = 0
+	}
 
 	// 获取当前缓存中的状态
 	currentStatus := cacheEvent.GetEventStatus()
@@ -96,7 +120,13 @@ func PushEventToFaultCenter(ctx *ctx.Context, event *models.AlertCurEvent) {
 		// 优先检查是否恢复
 		if event.IsRecovered {
 			// 告警恢复：告警中 → 已恢复
-			event.TransitionStatus(models.StateRecovered)
+			if err := event.TransitionStatus(models.StateRecovered); err != nil {
+				logc.Errorf(ctx.Ctx, "[状态转换失败] 告警中→已恢复: ruleId=%s, fingerprint=%s, error=%v",
+					event.RuleId, event.Fingerprint, err)
+			} else {
+				logc.Infof(ctx.Ctx, "[状态转换成功] 告警中→已恢复: ruleId=%s, fingerprint=%s, ruleName=%s",
+					event.RuleId, event.Fingerprint, event.RuleName)
+			}
 		} else if isSilenced {
 			// 如果需要静默
 			event.TransitionStatus(models.StateSilenced)
@@ -111,8 +141,12 @@ func PushEventToFaultCenter(ctx *ctx.Context, event *models.AlertCurEvent) {
 			event.TransitionStatus(models.StateAlerting)
 		}
 	case models.StateSilenced:
-		// 如果不再静默，转换回预告警状态
-		if !isSilenced {
+		// 优先检查是否恢复
+		if event.IsRecovered {
+			// 静默中恢复：静默中 → 已恢复
+			event.TransitionStatus(models.StateRecovered)
+		} else if !isSilenced {
+			// 如果不再静默，转换回预告警状态
 			event.TransitionStatus(models.StatePreAlert)
 		}
 	case models.StateRecovered:

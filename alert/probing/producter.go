@@ -155,7 +155,21 @@ func (t *ProductProbing) worker(rule models.ProbingRule) {
 					cacheEvent, _ = t.ctx.Redis.Alert().GetEventFromCache(event.TenantId, rule.FaultCenterId, fingerprints[0])
 					// 更新 alertEvent 的指纹为找到的旧指纹，确保能正确更新缓存
 					alertEvent.Fingerprint = fingerprints[0]
+				} else {
+					// 如果通过 ruleId 也找不到任何告警事件，说明告警还没有触发过
+					// 或者告警已经被清理了，此时不应该推送恢复事件，直接返回
+					t.cleanFrequency(t.FailFrequency, event.RuleId)
+					t.cleanFrequency(t.OkFrequency, event.RuleId)
+					return
 				}
+			}
+
+			// 如果缓存中的告警事件为空（RuleId 为空），说明没有找到有效的告警事件
+			if cacheEvent.RuleId == "" {
+				// 没有找到告警事件，不应该推送恢复事件
+				t.cleanFrequency(t.FailFrequency, event.RuleId)
+				t.cleanFrequency(t.OkFrequency, event.RuleId)
+				return
 			}
 
 			if cacheEvent.IsRecovered {
@@ -175,6 +189,12 @@ func (t *ProductProbing) worker(rule models.ProbingRule) {
 				// 标记为已恢复
 				alertEvent.IsRecovered = true
 				alertEvent.RecoverTime = time.Now().Unix()
+				// 重置 LastSendTime 为 0，确保恢复通知能够发送
+				// 因为 consumer 中恢复事件只有在 LastSendTime == 0 时才会发送
+				alertEvent.LastSendTime = 0
+				// 记录恢复事件推送日志
+				logc.Infof(t.ctx.Ctx, "[拨测恢复] 推送恢复事件: ruleId=%s, fingerprint=%s, ruleName=%s",
+					event.RuleId, alertEvent.Fingerprint, event.RuleName)
 				process.PushEventToFaultCenter(t.ctx, alertEvent)
 			}
 		}

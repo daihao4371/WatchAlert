@@ -236,13 +236,24 @@ func (c *Consume) filterAlertEvents(faultCenter models.FaultCenter, alerts map[s
 	var newEvents []*models.AlertCurEvent
 
 	for _, event := range alerts {
-		// 过滤掉 预告警, 待恢复, 已恢复 状态的事件
-		// 已恢复的告警不应该出现在活跃告警列表中
-		if event.Status == models.StatePreAlert || event.Status == models.StatePendingRecovery || event.Status == models.StateRecovered {
-			// 当告警处于已恢复状态时，从缓存中移除（已恢复的告警应该移到历史告警中）
-			if event.Status == models.StateRecovered {
+		// 恢复事件特殊处理：如果恢复通知还未发送（LastSendTime == 0），需要发送恢复通知
+		// 恢复通知发送后，才会从缓存中移除
+		if event.Status == models.StateRecovered {
+			// 检查是否需要发送恢复通知
+			if event.IsRecovered && event.LastSendTime == 0 {
+				// 恢复通知还未发送，允许通过过滤，进入发送流程
+				if valid := c.validateEvent(event, faultCenter); valid {
+					newEvents = append(newEvents, event)
+				}
+			} else {
+				// 恢复通知已发送，从缓存中移除（已恢复的告警应该移到历史告警中）
 				c.ctx.Redis.Alert().RemoveAlertEvent(event.TenantId, event.FaultCenterId, event.Fingerprint)
 			}
+			continue
+		}
+
+		// 过滤掉 预告警, 待恢复 状态的事件
+		if event.Status == models.StatePreAlert || event.Status == models.StatePendingRecovery {
 			continue
 		}
 
