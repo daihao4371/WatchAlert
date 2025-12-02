@@ -16,6 +16,11 @@ dist-ssr
 web/build
 web/.next
 
+# 排除前端代码（不推送到 AlertHub 仓库）
+web/
+package-lock.json
+package.json
+
 # Editor directories and files
 .idea/workspace.xml
 .vscode/*
