@@ -8,7 +8,7 @@ MySQL:
   port: 3306
   user: root
   pass: 123456
-  dbName: watchalert
+  dbName: alerthub
   timeout: 10s
 
 Redis:
