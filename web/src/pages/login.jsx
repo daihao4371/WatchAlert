@@ -6,6 +6,7 @@ import './global.css';
 import { checkUser, loginUser, registerUser, getOidcInfo } from '../api/user';
 import { message } from "antd";
 import { UserManager } from 'oidc-client';
+import loginIllustration from '../img/login-illustration.png';
 
 export const Login = () => {
     const [showOidcButtons,setShowOidcButtons] = useState(false);
@@ -119,59 +120,89 @@ export const Login = () => {
     const handleShowModal = () => setIsModalVisible(true);
     const handleHideModal = () => setIsModalVisible(false);
 
-    // 示例插画组件（你可以替换成自己的 SVG 或 Icon 组件）
-    const Illustration1 = () => (
-        <svg className="w-16 h-16 text-gray-300" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-        </svg>
-    );
-
-    const Illustration2 = () => (
-        <svg className="w-16 h-16 text-gray-300" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-    );
 
     return (
         <div className="min-h-screen flex bg-black text-white">
-            {/* 左侧插画区 */}
-            <div className="hidden md:flex w-1/2 flex-col justify-center items-center bg-black p-12 space-y-8">
-                <Illustration1 />
-                <h2 className="text-3xl tracking-wide font-semibold">WatchAlert 告警引擎</h2>
-                <p className="text-gray-300 max-w-md text-center leading-relaxed">
-                    实时监控 · 安全可靠 · 快速部署
-                </p>
-                <Illustration2 />
+            {/* 左侧插画区 - 使用提供的背景图片 */}
+            <div 
+                className="hidden md:flex w-1/2 flex-col justify-center items-center p-12 relative overflow-hidden"
+                style={{
+                    background: 'linear-gradient(to bottom, #f8f9fa, #e9ecef)',
+                }}
+            >
+                {/* 图片容器 - 居中显示，合适大小 */}
+                <div className="relative flex flex-col items-center justify-center space-y-8">
+                    {/* 标题和描述文字 */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6 }}
+                        className="text-center space-y-4"
+                    >
+                        <h2 className="text-4xl tracking-wide font-bold text-gray-800 mb-2">
+                        WatchAlert 告警引擎
+                        </h2>
+                        <p className="text-gray-600 max-w-md text-lg leading-relaxed">
+                            事件驱动运维,数据辅助决策。
+                        </p>
+                    </motion.div>
+                    
+                    {/* 图片显示区域 - 限制大小 */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.6, delay: 0.2 }}
+                        className="relative"
+                        style={{
+                            width: '100%',
+                            maxWidth: '600px',
+                            height: '400px',
+                        }}
+                    >
+                        <img 
+                            src={loginIllustration} 
+                            alt="WatchAlert 告警引擎"
+                            className="w-full h-full object-contain"
+                            style={{
+                                filter: 'drop-shadow(0 10px 30px rgba(0, 0, 0, 0.1))',
+                            }}
+                        />
+                    </motion.div>
+                </div>
             </div>
 
             {/* 右侧登录区域 */}
-            <div className="w-full md:w-1/2 flex items-center justify-center px-6 py-12">
+            <div className="w-full md:w-1/2 flex items-center justify-center px-6 py-12 bg-gradient-to-br from-slate-50 to-gray-100">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="bg-white text-black rounded-2xl shadow-2xl w-full max-w-md p-10"
+                    className="bg-white text-black rounded-2xl shadow-2xl w-full max-w-md p-10 border border-gray-200"
                 >
-                    <h1 className="text-3xl font-semibold mb-3">欢迎回来</h1>
-                    <p className="text-gray-700 mb-8 text-base">请登录以继续使用 WatchAlert</p>
+                    <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+                        欢迎回来
+                    </h1>
+                    <p className="text-gray-600 mb-8 text-base">请登录以继续使用 WatchAlert</p>
                     {!showOidcButtons ? (
                             <div>
                                 <form onSubmit={onFinish} className="space-y-5">
                                     <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">用户名</label>
                                         <input
                                             type="text"
                                             name="username"
-                                            placeholder="用户名"
-                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black focus:ring-opacity-20 hover:border-gray-400 transition-all"
+                                            placeholder="请输入用户名"
+                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-20 hover:border-gray-400 transition-all"
                                             required
                                         />
                                     </div>
                                     <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">密码</label>
                                         <input
                                             type="password"
                                             name="password"
-                                            placeholder="密码"
-                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black focus:ring-opacity-20 hover:border-gray-400 transition-all"
+                                            placeholder="请输入密码"
+                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-20 hover:border-gray-400 transition-all"
                                             required
                                         />
                                     </div>
@@ -186,7 +217,7 @@ export const Login = () => {
                                     </div>
                                     <button
                                         type="submit"
-                                        className="w-full bg-black text-white font-medium py-3.5 rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg hover:shadow-xl"
+                                        className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-medium py-3.5 rounded-lg hover:from-cyan-700 hover:to-blue-700 active:scale-[0.98] transition-all shadow-lg hover:shadow-xl"
                                     >
                                         登录
                                     </button>
@@ -200,16 +231,16 @@ export const Login = () => {
                                         </button>
                                     )}
                                 </form>
-                                <p className="text-gray-700 hover:text-black text-center text-sm font-medium py-4 mt-4 cursor-pointer border-t border-gray-200 transition-colors" onClick={()=> setShowOidcButtons(true)}>使用 SSO 服务登录</p>
+                                <p className="text-gray-600 hover:text-cyan-600 text-center text-sm font-medium py-4 mt-4 cursor-pointer border-t border-gray-200 transition-colors" onClick={()=> setShowOidcButtons(true)}>使用 SSO 服务登录</p>
                             </div>
                         ):(
                             <div>
                                 <button onClick={handleOidcLogin}
-                                    className="w-full py-3.5 border-2 border-gray-300 text-black font-medium rounded-lg hover:bg-gray-100 hover:border-gray-400 active:scale-[0.98] transition-all text-center shadow-sm hover:shadow-md"
+                                    className="w-full py-3.5 border-2 border-cyan-500 text-cyan-600 font-medium rounded-lg hover:bg-cyan-50 hover:border-cyan-600 active:scale-[0.98] transition-all text-center shadow-sm hover:shadow-md"
                                 >
                                     使用 OIDC 登录
                                 </button>
-                                <p className="text-gray-700 hover:text-black text-center text-sm font-medium py-4 mt-4 cursor-pointer border-t border-gray-200 transition-colors" onClick={()=> setShowOidcButtons(false)}>管理员登录</p>
+                                <p className="text-gray-600 hover:text-cyan-600 text-center text-sm font-medium py-4 mt-4 cursor-pointer border-t border-gray-200 transition-colors" onClick={()=> setShowOidcButtons(false)}>管理员登录</p>
                             </div>
                         )
                     }
@@ -237,7 +268,7 @@ export const Login = () => {
                                     type="password"
                                     id="init-password"
                                     name="password"
-                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black focus:ring-opacity-20 hover:border-gray-400 transition-all"
+                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-20 hover:border-gray-400 transition-all"
                                     required
                                 />
                             </div>
@@ -249,7 +280,7 @@ export const Login = () => {
                                     type="password"
                                     id="confirm-password"
                                     name="confirm-password"
-                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black focus:ring-opacity-20 hover:border-gray-400 transition-all"
+                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-20 hover:border-gray-400 transition-all"
                                     required
                                 />
                             </div>
@@ -263,7 +294,7 @@ export const Login = () => {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-6 py-2.5 bg-black text-white font-medium rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg hover:shadow-xl"
+                                    className="px-6 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-medium rounded-lg hover:from-cyan-700 hover:to-blue-700 active:scale-[0.98] transition-all shadow-lg hover:shadow-xl"
                                 >
                                     提交
                                 </button>
