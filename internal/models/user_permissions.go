@@ -363,5 +363,21 @@ func PermissionsInfo() map[string]UserPermissions {
 			Key: "删除评论",
 			API: "/api/w8t/event/deleteComment",
 		},
+		"quickLogin": {
+			Key: "快捷操作登录",
+			API: "/api/v1/alert/quick-login",
+		},
+		"quickAction": {
+			Key: "执行快捷操作(认领/静默/处理)",
+			API: "/api/v1/alert/quick-action",
+		},
+		"quickSilenceForm": {
+			Key: "查看自定义静默表单",
+			API: "/api/v1/alert/quick-silence",
+		},
+		"quickSilence": {
+			Key: "提交自定义静默",
+			API: "/api/v1/alert/quick-silence",
+		},
 	}
 }
