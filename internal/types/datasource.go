@@ -52,11 +52,12 @@ type RequestDatasourceQuery struct {
 }
 
 type RequestQueryMetricsValue struct {
-	DatasourceIds string `form:"datasourceIds"`
-	Query         string `form:"query"`
-	StartTime     int64  `form:"startTime"` // Unix 时间戳（秒），可选
-	EndTime       int64  `form:"endTime"`   // Unix 时间戳（秒），可选
-	Step          int64  `form:"step"`      // 步长（秒），可选
+	DatasourceIds string            `form:"datasourceIds"`
+	Query         string            `form:"query"`
+	StartTime     int64             `form:"startTime"` // Unix 时间戳（秒），可选
+	EndTime       int64             `form:"endTime"`   // Unix 时间戳（秒），可选
+	Step          int64             `form:"step"`      // 步长（秒），可选
+	Variables     map[string]string `form:"variables"` // 查询变量，用于替换查询语句中的 $variable 格式
 }
 
 func (r RequestQueryMetricsValue) Validate() error {

@@ -35,9 +35,13 @@ func metrics(ctx *ctx.Context, datasourceId, datasourceType string, rule models.
 		return nil
 	}
 
+	// 处理 PromQL 中的变量：如果包含 $instance 或 $ifName 等变量，替换为通配符以查询所有匹配的指标
+	// 告警规则执行时应该监控所有匹配的指标，而不是只监控特定的 instance 或 ifName
+	promQL := tools.ReplacePromQLVariablesForAlert(rule.PrometheusConfig.PromQL, nil)
+	
 	switch datasourceType {
 	case provider.PrometheusDsProvider:
-		resQuery, err = cli.(provider.PrometheusProvider).Query(rule.PrometheusConfig.PromQL)
+		resQuery, err = cli.(provider.PrometheusProvider).Query(promQL)
 		if err != nil {
 			logc.Error(ctx.Ctx, err.Error())
 			return nil
@@ -45,7 +49,7 @@ func metrics(ctx *ctx.Context, datasourceId, datasourceType string, rule models.
 
 		externalLabels = cli.(provider.PrometheusProvider).GetExternalLabels()
 	case provider.VictoriaMetricsDsProvider:
-		resQuery, err = cli.(provider.VictoriaMetricsProvider).Query(rule.PrometheusConfig.PromQL)
+		resQuery, err = cli.(provider.VictoriaMetricsProvider).Query(promQL)
 		if err != nil {
 			logc.Error(ctx.Ctx, err.Error())
 			return nil

@@ -3,12 +3,12 @@ package middleware
 import (
 	"bytes"
 	"context"
-	"fmt"
+	"io/ioutil"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/zeromicro/go-zero/core/logc"
 	"github.com/zeromicro/go-zero/core/logx"
-	"io/ioutil"
-	"time"
 )
 
 // GinZapLogger returns a gin.HandlerFunc that logs requests using zap
@@ -55,8 +55,8 @@ func LoggingMiddleware() gin.HandlerFunc {
 		// 将body复制回原位
 		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 		// 打印body和query params
-		fmt.Println("Body:", string(bodyBytes))
-		fmt.Println("Query Params:", c.Request.URL.Query())
+		// fmt.Println("Body:", string(bodyBytes))
+		// fmt.Println("Query Params:", c.Request.URL.Query())
 		// 处理请求
 		c.Next()
 	}

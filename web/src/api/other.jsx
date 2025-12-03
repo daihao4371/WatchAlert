@@ -46,9 +46,20 @@ async function queryRangePromMetrics(params) {
     }
 }
 
+async function getPromLabelValues(params) {
+    try {
+        const res = await http('get', `/api/w8t/datasource/promLabelValues`, params);
+        return res;
+    } catch (error) {
+        HandleApiError(error)
+        return error
+    }
+}
+
 export {
     getDashboardInfo,
     getJaegerService,
     queryPromMetrics,
-    queryRangePromMetrics
+    queryRangePromMetrics,
+    getPromLabelValues
 }

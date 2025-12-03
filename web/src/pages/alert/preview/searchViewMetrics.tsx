@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react"
-import { Spin, Tag, Empty, Card, Typography, Space, Divider, Row, Col, Alert, Tabs } from "antd"
+import React, { useEffect, useState } from "react"
+import { Spin, Tag, Empty, Card, Typography, Space, Divider, Row, Col, Alert, Tabs, Select } from "antd"
 import {
     ClockCircleOutlined,
     TagsOutlined,
@@ -7,7 +7,7 @@ import {
     FileTextOutlined,
     LineChartOutlined,
 } from "@ant-design/icons"
-import {queryPromMetrics, queryRangePromMetrics} from '../../../api/other'
+import {queryPromMetrics, queryRangePromMetrics, getPromLabelValues} from '../../../api/other'
 import ReactECharts from "echarts-for-react"
 
 const { Title, Text } = Typography
@@ -26,14 +26,111 @@ interface SearchViewMetricsProps {
     datasourceType: string
     datasourceId: string[]
     promQL: string
+    variables?: Record<string, string> // 可选的变量映射，用于替换查询语句中的 $variable
 }
 
-export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: SearchViewMetricsProps) => {
+export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL, variables }: SearchViewMetricsProps) => {
     const [metrics, setMetrics] = useState<MetricItem[]>([])
     const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    
+    // 变量选择器相关状态
+    const [instanceOptions, setInstanceOptions] = useState<string[]>([])
+    const [ifNameOptions, setIfNameOptions] = useState<string[]>([])
+    const [selectedInstance, setSelectedInstance] = useState<string | undefined>(variables?.instance)
+    const [selectedIfName, setSelectedIfName] = useState<string | undefined>(variables?.ifName)
+    const [loadingOptions, setLoadingOptions] = useState(false)
+    
+    // 检测查询语句中是否包含变量
+    const hasInstanceVar = promQL.includes('$instance')
+    const hasIfNameVar = promQL.includes('$ifName')
+    
+    // 从查询语句中提取 metric 名称（用于获取 label 值）
+    const extractMetricName = (query: string): string => {
+        // 尝试匹配常见的 metric 名称模式
+        const metricPatterns = [
+            /(ifHCIn\w+|ifIn\w+|ifOut\w+|ifHCOut\w+)/,
+            /(\w+)\{/,
+        ]
+        for (const pattern of metricPatterns) {
+            const match = query.match(pattern)
+            if (match && match[1]) {
+                return match[1]
+            }
+        }
+        return ''
+    }
 
+    // 获取 label 值的函数
+    useEffect(() => {
+        const fetchLabelValues = async () => {
+            if (datasourceId.length === 0) return
+            
+            const metricName = extractMetricName(promQL)
+            const firstDatasourceId = datasourceId[0]
+            
+            setLoadingOptions(true)
+            try {
+                const promises: Promise<any>[] = []
+                
+                // 如果需要 instance，获取 instance 值
+                if (hasInstanceVar) {
+                    promises.push(
+                        getPromLabelValues({
+                            datasourceId: firstDatasourceId,
+                            labelName: 'instance',
+                            metricName: metricName || undefined
+                        }).then(res => {
+                            if (res.code === 200 && Array.isArray(res.data)) {
+                                setInstanceOptions(res.data)
+                                // 如果没有选中值且有可用选项，自动选择第一个
+                                if (!selectedInstance && res.data.length > 0) {
+                                    setSelectedInstance(res.data[0])
+                                }
+                            }
+                        }).catch(err => {
+                            console.error('获取 instance 值失败:', err)
+                        })
+                    )
+                }
+                
+                // 如果需要 ifName，获取 ifName 值
+                if (hasIfNameVar) {
+                    promises.push(
+                        getPromLabelValues({
+                            datasourceId: firstDatasourceId,
+                            labelName: 'ifName',
+                            metricName: metricName || undefined
+                        }).then(res => {
+                            if (res.code === 200 && Array.isArray(res.data)) {
+                                setIfNameOptions(res.data)
+                                // 如果没有选中值且有可用选项，自动选择第一个
+                                if (!selectedIfName && res.data.length > 0) {
+                                    setSelectedIfName(res.data[0])
+                                }
+                            }
+                        }).catch(err => {
+                            console.error('获取 ifName 值失败:', err)
+                        })
+                    )
+                }
+                
+                await Promise.all(promises)
+            } catch (err) {
+                console.error('获取 label 值失败:', err)
+            } finally {
+                setLoadingOptions(false)
+            }
+        }
+        
+        // 如果查询包含变量，获取可用的 label 值
+        if ((hasInstanceVar || hasIfNameVar) && datasourceId.length > 0 && promQL) {
+            fetchLabelValues()
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [datasourceId, promQL, hasInstanceVar, hasIfNameVar])
+    
     useEffect(() => {
         const fetchMetrics = async () => {
             try {
@@ -47,14 +144,40 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
                 const now = Math.floor(Date.now() / 1000)
                 const oneHourAgo = now - 3600 // 过去1小时
 
+                // 构建查询参数，包含变量
+                const queryParams: any = {
+                    datasourceIds: datasourceId.join(","),
+                    query: promQL,
+                }
+                
+                // 合并外部传入的变量和用户选择的变量
+                const mergedVariables: Record<string, string> = { ...variables }
+                if (selectedInstance) {
+                    mergedVariables.instance = selectedInstance
+                }
+                if (selectedIfName) {
+                    mergedVariables.ifName = selectedIfName
+                }
+                
+                // 如果有变量，添加到查询参数中
+                if (Object.keys(mergedVariables).length > 0) {
+                    // 方式1: 使用 variables[key]=value 格式
+                    Object.keys(mergedVariables).forEach(key => {
+                        queryParams[`variables[${key}]`] = mergedVariables[key]
+                    })
+                    // 方式2: 同时传递直接的 instance 和 ifName 参数（兼容性）
+                    if (mergedVariables.instance) {
+                        queryParams.instance = mergedVariables.instance
+                    }
+                    if (mergedVariables.ifName) {
+                        queryParams.ifName = mergedVariables.ifName
+                    }
+                }
+
                 const [instantRes, rangeRes] = await Promise.all([
-                    queryPromMetrics({
-                        datasourceIds: datasourceId.join(","),
-                        query: promQL,
-                    }),
+                    queryPromMetrics(queryParams),
                     queryRangePromMetrics({
-                        datasourceIds: datasourceId.join(","),
-                        query: promQL,
+                        ...queryParams,
                         start: oneHourAgo,
                         end: now,
                         step: 60, // 每分钟一个数据点
@@ -87,7 +210,11 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
         }
 
         // 关键修复：只有当必要参数都存在时才发起请求
-        if (datasourceId.length > 0 && promQL && promQL.trim() !== '') {
+        // 如果查询包含变量，需要等待变量值被选择
+        const shouldFetch = datasourceId.length > 0 && promQL && promQL.trim() !== ''
+        const hasRequiredVariables = (!hasInstanceVar || selectedInstance) && (!hasIfNameVar || selectedIfName)
+        
+        if (shouldFetch && hasRequiredVariables) {
             fetchMetrics()
         } else {
             // 如果参数不完整,清空数据并停止加载状态
@@ -95,7 +222,8 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
             setTimeSeriesData([])
             setLoading(false)
         }
-    }, [datasourceId, promQL, datasourceType])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [datasourceId, promQL, datasourceType, selectedInstance, selectedIfName, hasInstanceVar, hasIfNameVar, variables])
 
     const formatTimestamp = (timestamp: number) => {
         return new Date(timestamp * 1000).toLocaleString("zh-CN")
@@ -466,11 +594,41 @@ export const SearchViewMetrics = ({ datasourceType, datasourceId, promQL }: Sear
                     borderRadius: "8px 8px 0 0",
                 }}
             >
-                <Space align="center">
-                    <BarChartOutlined style={{ fontSize: "20px", color: "white" }} />
-                    <Title level={4} style={{ margin: 0, color: "white" }}>
-                        {datasourceType}
-                    </Title>
+                <Space align="center" style={{ width: "100%", justifyContent: "space-between" }}>
+                    <Space align="center">
+                        <BarChartOutlined style={{ fontSize: "20px", color: "white" }} />
+                        <Title level={4} style={{ margin: 0, color: "white" }}>
+                            {datasourceType}
+                        </Title>
+                    </Space>
+                    
+                    {/* 变量选择器 */}
+                    {(hasInstanceVar || hasIfNameVar) && (
+                        <Space>
+                            {hasInstanceVar && (
+                                <Select
+                                    style={{ minWidth: 200 }}
+                                    placeholder="选择 instance"
+                                    value={selectedInstance}
+                                    onChange={(value) => setSelectedInstance(value)}
+                                    loading={loadingOptions}
+                                    options={instanceOptions.map(opt => ({ label: opt, value: opt }))}
+                                    allowClear
+                                />
+                            )}
+                            {hasIfNameVar && (
+                                <Select
+                                    style={{ minWidth: 200 }}
+                                    placeholder="选择 ifName"
+                                    value={selectedIfName}
+                                    onChange={(value) => setSelectedIfName(value)}
+                                    loading={loadingOptions}
+                                    options={ifNameOptions.map(opt => ({ label: opt, value: opt }))}
+                                    allowClear
+                                />
+                            )}
+                        </Space>
+                    )}
                 </Space>
             </div>
 
