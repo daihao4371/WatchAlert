@@ -13,7 +13,7 @@ MySQL:
 
 Redis:
   host: 10.10.217.225
-  port: 6379
+  port: 6380
   pass: ""
   database: 0
 

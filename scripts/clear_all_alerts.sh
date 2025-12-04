@@ -33,7 +33,7 @@ if [[ ! $confirm =~ ^[Yy]$ ]]; then
 fi
 
 echo ""
-echo -e "${YELLOW}[1/3] 清空 Redis 中的活跃告警缓存...${NC}"
+echo -e "${YELLOW}[1/6] 清空 Redis 中的活跃告警缓存...${NC}"
 
 # 获取所有故障中心的事件缓存key
 redis_keys=$(redis-cli -h $REDIS_HOST -p $REDIS_PORT keys "w8t:*:faultCenter:*.events" 2>/dev/null)
@@ -50,7 +50,7 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}[2/4] 清空数据库中的历史告警数据...${NC}"
+echo -e "${YELLOW}[2/6] 清空数据库中的历史告警数据...${NC}"
 
 # 检查历史告警表是否存在 (尝试两种表名)
 table_exists=$(mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $MYSQL_USER -p$MYSQL_PASS -D $MYSQL_DB -sse "SHOW TABLES LIKE 'alert_his_events';" 2>/dev/null)
@@ -80,7 +80,7 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}[3/4] 清空数据库中的静默规则...${NC}"
+echo -e "${YELLOW}[3/6] 清空数据库中的静默规则...${NC}"
 
 # 获取静默规则数量
 silence_count=$(mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $MYSQL_USER -p$MYSQL_PASS -D $MYSQL_DB -sse "SELECT COUNT(*) FROM alert_silences;" 2>/dev/null)
@@ -113,7 +113,7 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}[4/4] 清空拨测任务的独立缓存 (如果存在)...${NC}"
+echo -e "${YELLOW}[4/6] 清空拨测任务的独立缓存 (如果存在)...${NC}"
 
 # 清空拨测任务的独立事件缓存
 probing_keys=$(redis-cli -h $REDIS_HOST -p $REDIS_PORT keys "w8t:*:probing:*.event" 2>/dev/null)
@@ -127,6 +127,44 @@ else
         ((count++))
     done
     echo -e "${GREEN}  - 已清空 $count 个拨测任务的独立缓存${NC}"
+fi
+
+echo ""
+echo -e "${YELLOW}[5/6] 清空通知发送记录表...${NC}"
+
+# 清空通知发送记录表 (notice_records)
+notice_count=$(mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $MYSQL_USER -p$MYSQL_PASS -D $MYSQL_DB -sse "SELECT COUNT(*) FROM notice_records;" 2>/dev/null)
+
+if [ -z "$notice_count" ] || [ "$notice_count" -eq 0 ]; then
+    echo -e "${GREEN}  - 数据库中没有通知发送记录${NC}"
+else
+    # 清空通知记录表
+    mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $MYSQL_USER -p$MYSQL_PASS -D $MYSQL_DB -e "DELETE FROM notice_records;" 2>/dev/null
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}  - 已删除 $notice_count 条通知发送记录${NC}"
+    else
+        echo -e "${RED}  - 清空通知发送记录表失败${NC}"
+    fi
+fi
+
+echo ""
+echo -e "${YELLOW}[6/6] 清空拨测历史数据表...${NC}"
+
+# 清空拨测历史数据表 (w8t_probing_history)
+probing_history_count=$(mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $MYSQL_USER -p$MYSQL_PASS -D $MYSQL_DB -sse "SELECT COUNT(*) FROM w8t_probing_history;" 2>/dev/null)
+
+if [ -z "$probing_history_count" ] || [ "$probing_history_count" -eq 0 ]; then
+    echo -e "${GREEN}  - 数据库中没有拨测历史数据${NC}"
+else
+    # 清空拨测历史数据表
+    mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $MYSQL_USER -p$MYSQL_PASS -D $MYSQL_DB -e "DELETE FROM w8t_probing_history;" 2>/dev/null
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}  - 已删除 $probing_history_count 条拨测历史记录${NC}"
+    else
+        echo -e "${RED}  - 清空拨测历史数据表失败${NC}"
+    fi
 fi
 
 echo ""
